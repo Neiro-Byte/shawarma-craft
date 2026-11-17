@@ -1,0 +1,32 @@
+{
+  "name": "shawarma-craft-3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "node scripts/check-catalog.mjs && node scripts/check-catalog-settings.mjs && node scripts/check-saved-recipe.mjs && node scripts/check-order-draft.mjs && node scripts/check-pricing.mjs && node scripts/check-last-order.mjs && node scripts/check-product-info.mjs && node scripts/check-ingredient-flight.mjs && node scripts/check-pantry-models.mjs && node scripts/check-pantry-stations.mjs && node scripts/check-scene-layout.mjs && tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "gsap": "^3.13.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.0",
+    "three": "^0.181.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.181.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.2.0"
+  }
+}

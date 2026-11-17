@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+.shawarma-local/
+.env
+.env.*
+*.sqlite*
+*.pem
+*.key
+docs/
+HANDOFF.md
+IDEAS.md
+/scripts/make-qr.py
