@@ -1,0 +1,12 @@
+.sc-saved-recipe{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;padding:17px;border:1px solid #d8ddc9;border-radius:14px;background:#fffaf0;color:#4c6242}
+.sc-saved-recipe-copy{min-width:0;flex:1 1 230px;overflow-wrap:anywhere}
+.sc-saved-recipe-copy h2{margin:0 0 6px;font-size:16px;font-weight:650}
+.sc-saved-recipe-copy p{margin:0;font-size:11px;line-height:1.6}
+.sc-saved-recipe-copy span{display:block;margin-top:5px;font-size:10px;line-height:1.6;color:#647454}
+.sc-saved-recipe-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.sc-saved-recipe-actions button{max-width:100%;border:1px solid #cbd6b4;border-radius:10px;padding:10px 12px;background:#e6ebd8;color:#405c3e;font:inherit;font-size:11px;white-space:normal}
+.sc-saved-recipe-actions button:disabled{opacity:.45;cursor:default}
+.sc-saved-recipe-actions button:focus-visible{outline:3px solid #db864d;outline-offset:3px}
+.sc-saved-recipe-status{flex-basis:100%;margin:0;overflow-wrap:anywhere;font-size:11px;line-height:1.6}
+.sc-saved-recipe-status:empty{display:none}
+@media(max-width:650px){.sc-saved-recipe{padding:14px}.sc-saved-recipe-actions{width:100%}.sc-saved-recipe-actions button{flex:1 1 115px}}

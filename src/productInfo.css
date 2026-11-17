@@ -1,0 +1,36 @@
+.sc-product-info-editor, .sc-product-info-summary {
+ color: var(--ink, #292822); background: var(--paper, #fffaf0);
+ font-size: 14px; line-height: 1.55; overflow-wrap: anywhere;
+}
+.sc-product-info-editor { max-width: 920px; margin: auto; padding: 18px 14px max(24px, env(safe-area-inset-bottom)); }
+.sc-product-info-editor * { box-sizing: border-box; }
+.sc-product-info-editor header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.sc-product-info-editor h1 { margin: 0; font-size: 26px; }
+.sc-product-info-editor h2 { margin-bottom: 6px; font-size: 20px; }
+.sc-product-info-editor p { margin: 8px 0; }
+.sc-product-info-editor button, .sc-product-info-editor select, .sc-product-info-editor textarea, .sc-product-info-editor input[type="date"] {
+ max-width: 100%; min-height: 44px; padding: 9px; font: inherit; color: inherit; background: #fffdf8; border: 1px solid #a89d8d; border-radius: 5px;
+}
+.sc-product-info-editor button { cursor: pointer; font-weight: 650; }
+.sc-product-info-editor button:disabled { opacity: .55; cursor: default; }
+.sc-product-info-editor :is(button, input, select, textarea):focus-visible { outline: 3px solid #8b5019; outline-offset: 3px; }
+.sc-product-info-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.sc-product-info-picker label, .sc-product-info-field { display: grid; gap: 6px; min-width: 0; }
+.sc-product-info-field { margin: 16px 0; }
+.sc-product-info-editor fieldset { min-width: 0; padding: 12px; margin: 16px 0; border: 1px solid #c8bdab; border-radius: 5px; }
+.sc-product-info-editor legend { font-weight: 700; }
+.sc-product-info-allergens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 14px; }
+.sc-product-info-allergens label, .sc-product-info-check { min-height: 44px; display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.sc-product-info-editor input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; accent-color: #77562e; }
+.sc-product-info-editor footer { border-top: 1px solid #c8bdab; margin-top: 20px; padding-top: 12px; }
+.sc-product-info-editor footer button { background: #ffcf79; }
+.sc-product-info-error, .sc-product-info-confirm, .sc-product-info-warning { padding: 12px; background: #fff1de; border: 1px solid #ac7a3d; border-radius: 5px; }
+.sc-product-info-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.sc-product-info-summary { margin-block: 12px; padding: 12px; border: 1px solid #c8bdab; border-radius: 5px; }
+.sc-product-info-summary h3, .sc-product-info-summary h4 { margin: 0 0 7px; }
+.sc-product-info-summary p { margin: 8px 0; }
+.sc-product-info-summary ul { padding-left: 20px; }
+@media (max-width: 650px) {
+ .sc-product-info-picker, .sc-product-info-allergens { grid-template-columns: minmax(0, 1fr); }
+ .sc-product-info-actions button { flex: 1 1 170px; }
+}

@@ -1,0 +1,35 @@
+.sc-order-summary { margin-top: 18px; padding: 16px; border: 1px solid var(--line, #d6cabb); border-top: 4px solid var(--amber, #ffbe45); border-radius: 6px; background: var(--paper, #fffaf0); color: var(--ink, #262320); font-size: 14px; line-height: 1.45; }
+.sc-order-summary h2, .sc-order-summary h3 { margin: 0 0 8px; font-weight: 800; overflow-wrap: anywhere; }
+.sc-order-summary h2 { font-size: 24px; }
+.sc-order-summary h3 { font-size: 16px; }
+.sc-order-summary p { margin: 5px 0 12px; }
+.sc-order-summary-notice { color: var(--muted, #655d54); font-size: 12px; }
+.sc-order-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; }
+.sc-order-summary-card { min-width: 0; padding: 12px; border: 1px solid #d6cabb; border-radius: 5px; background: #fffdf7; overflow-wrap: anywhere; }
+.sc-order-summary dl { margin: 0; }
+.sc-order-summary dl > div, .sc-order-summary li, .sc-order-summary-total { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; }
+.sc-order-summary dt, .sc-order-summary li > span { min-width: 0; overflow-wrap: anywhere; }
+.sc-order-summary dd { margin: 0; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.sc-order-summary-subtotal { margin-top: 6px; border-top: 1px dashed #d6cabb; font-weight: 750; }
+.sc-order-summary button { min-height: 44px; margin-top: 9px; padding: 8px 12px; border: 1px solid #bba995; border-radius: 5px; background: #ffedc8; color: inherit; font: inherit; }
+.sc-order-summary button:focus-visible { outline: 3px solid #82450f; outline-offset: 3px; }
+.sc-order-summary-extras { margin-top: 16px; }
+.sc-order-summary ul { padding: 0; margin: 0; list-style: none; }
+.sc-order-summary small { display: block; font-size: 12px; color: var(--muted, #655d54); }
+.sc-order-summary li > strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.sc-order-summary-total { align-items: baseline; margin-top: 14px; padding-top: 12px; border-top: 2px solid #262320; flex-wrap: wrap; font-weight: 750; }
+.sc-order-summary-total strong { font-size: 23px; font-variant-numeric: tabular-nums; }
+@media (max-width: 650px) { .sc-order-summary { padding: 12px; } .sc-order-summary-cards { grid-template-columns: minmax(0, 1fr); } }
+
+.ingredient-order { margin: 6px 0 12px; }
+.ingredient-order ol { margin: 4px 0 0; padding-inline-start: 1.5em; list-style: decimal; }
+.ingredient-order > ol > li { display: list-item; padding: 2px 0; border: 0; overflow-wrap: anywhere; }
+.kitchen-instructions { scroll-margin-top: 16px; }
+.kitchen-steps { min-width: 0; margin: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 5px; }
+.kitchen-steps legend { padding-inline: 4px; font-weight: 750; overflow-wrap: anywhere; }
+.kitchen-steps ol { margin: 0; padding: 0; list-style: none; }
+.kitchen-steps ol li { padding: 0; }
+.kitchen-steps label { display: flex; align-items: center; gap: 8px; min-height: 44px; width: 100%; }
+.kitchen-steps input { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--signal); }
+.kitchen-steps label:has(input:checked) > span { text-decoration: line-through; }
+.kitchen-steps label:has(input:not(:disabled)) { cursor: pointer; }

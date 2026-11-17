@@ -1,0 +1,123 @@
+.sc-kitchen {
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.sc-kitchen-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.sc-kitchen-heading h1 {
+  margin: 0;
+  font: 800 clamp(28px, 5vw, 46px)/1.1 var(--display);
+}
+.sc-kitchen-heading > div,
+.sc-kitchen-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sc-kitchen button {
+  min-height: 44px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+}
+.sc-kitchen button:disabled { opacity: .6; }
+.sc-kitchen button.sc-kitchen-primary,
+.sc-kitchen-filters button[aria-pressed=true] {
+  border-color: #ac7429;
+  background: var(--amber);
+}
+.sc-kitchen-login {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 360px);
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.sc-kitchen-login label { font-weight: 700; }
+.sc-kitchen-login input {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 16px;
+}
+.sc-kitchen-message:empty { margin: 0; }
+.sc-kitchen-error {
+  padding: 8px;
+  background: #f8e0d5;
+  color: #772c1b;
+  border-radius: 5px;
+}
+.sc-kitchen-queue {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  align-items: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+.sc-kitchen-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  overflow-wrap: anywhere;
+}
+.sc-kitchen-card > header,
+.sc-kitchen-extras li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.sc-kitchen-card h2,
+.sc-kitchen-card h3 {
+  margin: 0;
+  line-height: 1.2;
+  font-weight: 800;
+}
+.sc-kitchen-card h2 { font-size: 21px; }
+.sc-kitchen-card h3 { font-size: 16px; }
+.sc-kitchen-card time,
+.sc-kitchen-card .sc-kitchen-grill { color: var(--muted); }
+.sc-kitchen-status {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #e4ecdd;
+  color: #334e2d;
+  font-size: 13px;
+  font-weight: 750;
+}
+.sc-kitchen-status.is-accepted { background: #ede3d7; color: #644a35; }
+.sc-kitchen-status.is-preparing { background: var(--amber-pale); color: var(--signal); }
+.sc-kitchen-item {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.sc-kitchen-item p,
+.sc-kitchen-item ol,
+.sc-kitchen-extras { margin: 5px 0 0; }
+.sc-kitchen-item ol {
+  padding-inline-start: 1.4em;
+  list-style: decimal;
+}
+.sc-kitchen-extras { padding: 0; }
+.sc-kitchen-extras strong { white-space: nowrap; }
+.sc-kitchen-card > button {
+  width: 100%;
+  margin-top: 12px;
+}

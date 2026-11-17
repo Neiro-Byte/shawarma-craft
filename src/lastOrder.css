@@ -1,0 +1,17 @@
+.sc-last-order { margin-top: 18px; padding: 14px; border: 1px solid var(--line, #d6cabb); border-radius: 6px; background: var(--paper, #fffaf0); color: var(--ink, #262320); font-size: 13px; line-height: 1.5; }
+.sc-last-order h2 { margin: 0 0 8px; font-size: 21px; font-weight: 800; }
+.sc-last-order p { margin: 7px 0; }
+.sc-last-order-composition { margin: 10px 0; padding: 0; list-style: none; }
+.sc-last-order-composition > li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 7px 0; border-bottom: 1px dashed #d6cabb; }
+.sc-last-order-composition > li > span { min-width: 0; overflow-wrap: anywhere; }
+.sc-last-order-composition > li > strong:first-child { flex-basis: 100%; }
+.sc-last-order-total { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 15px; }
+.sc-last-order-warning { padding: 9px; border: 1px solid #d7b27d; border-radius: 5px; background: #ffedc8; color: #6c370d; overflow-wrap: anywhere; }
+.sc-last-order-warning ul { margin: 6px 0; padding-left: 20px; list-style: disc; }
+.sc-last-order-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sc-last-order button { min-height: 44px; max-width: 100%; padding: 8px 12px; border: 1px solid #bba995; border-radius: 5px; background: #fffdf7; color: inherit; font: inherit; font-weight: 650; }
+.sc-last-order button:disabled { opacity: .5; cursor: default; }
+.sc-last-order button:focus-visible { outline: 3px solid #82450f; outline-offset: 3px; }
+.sc-last-order .sc-last-order-restore { border-color: #a66b19; background: #ffbe45; }
+.sc-last-order small { color: var(--muted, #655d54); font-size: 12px; }
+@media (max-width: 650px) { .sc-last-order-actions button { flex: 1 1 200px; } }

@@ -1,0 +1,126 @@
+.sc-mobile-order { display: none; }
+
+@media (max-width: 720px) {
+  .app:has(.sc-mobile-order) {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+
+  .sc-mobile-order {
+    position: fixed;
+    z-index: 30;
+    right: max(10px, env(safe-area-inset-right, 0px));
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: max(10px, env(safe-area-inset-left, 0px));
+    display: block;
+    color: var(--ink);
+  }
+
+  .sc-mobile-order-backdrop {
+    position: fixed;
+    inset: 0;
+    background: #18161274;
+    touch-action: none;
+  }
+
+  .sc-mobile-order-sheet {
+    position: relative;
+    display: flex;
+    flex-direction: column-reverse;
+    border: 1px solid var(--graphite);
+    border-radius: 10px;
+    background: var(--paper);
+    box-shadow: 0 5px 28px #18161238;
+  }
+
+  .sc-mobile-order-toggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--graphite);
+    color: var(--paper);
+    text-align: left;
+  }
+
+  .sc-mobile-order-toggle > svg { flex: 0 0 auto; color: var(--amber); }
+  .sc-mobile-order-toggle > span:first-of-type { flex: 1; min-width: 0; }
+  .sc-mobile-order-toggle .sc-mobile-order-total { font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .sc-mobile-order-toggle strong { display: block; font-size: 15px; line-height: 1.2; }
+  .sc-mobile-order-toggle span span { display: block; margin-top: 3px; font-size: 12px; line-height: 1.25; }
+  .sc-mobile-order-toggle[aria-expanded="true"] { border-radius: 0 0 9px 9px; }
+  .sc-mobile-order-toggle[aria-expanded="true"] .sc-mobile-order-chevron { transform: rotate(180deg); }
+  .sc-mobile-order-toggle:focus-visible { outline-color: var(--amber); outline-offset: -4px; }
+
+  .sc-mobile-order-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: min(70vh, 520px);
+    max-height: min(70dvh, 520px);
+  }
+
+  .sc-mobile-order-panel[hidden] { display: none; }
+  .sc-mobile-order-list {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 12px 4px;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .sc-mobile-order-list ul { margin: 0; padding: 0; list-style: none; }
+  .sc-mobile-order-list ul + ul { border-top: 1px solid var(--line); }
+  .sc-mobile-order-list ul > li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 0;
+  }
+
+  .sc-mobile-order-list ul > li > :first-child { min-width: 0; overflow-wrap: anywhere; }
+  .sc-mobile-order-list p { margin: 3px 0; color: var(--muted); }
+  .sc-mobile-order-list ul > li + li { border-top: 1px dashed var(--line); }
+  .sc-mobile-order-list .sc-mobile-order-status { margin: 0 0 5px; color: var(--signal); font-weight: 750; }
+  .sc-mobile-order-current { display: inline-block; margin-left: 6px; color: var(--signal); font-size: 11px; }
+  .sc-mobile-order-quantity { flex: 0 0 auto; white-space: nowrap; font-weight: 750; }
+
+  .sc-mobile-order-edit, .sc-mobile-order-actions button {
+    min-height: 44px;
+    padding: 6px 9px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 750;
+  }
+
+  .sc-mobile-order-edit { flex: 0 0 auto; }
+  .sc-mobile-order-actions { flex: 0 0 auto; padding: 8px 12px 10px; border-top: 1px solid var(--line); }
+  .sc-mobile-order-actions button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    border-color: #a66b19;
+    background: var(--amber);
+  }
+
+  .sc-mobile-order-actions .sc-mobile-order-quick {
+    margin-top: 5px;
+    border-color: var(--line);
+    background: var(--paper);
+  }
+  .sc-mobile-order-demo { margin: 0 0 5px; color: var(--muted); font-size: 11px; text-align: center; }
+  .sc-mobile-order-grill { font-size: 12px; }
+  .sc-mobile-order-actions button svg { flex: 0 0 auto; }
+  .sc-mobile-order-actions button:hover { background: var(--amber-hover); }
+}
