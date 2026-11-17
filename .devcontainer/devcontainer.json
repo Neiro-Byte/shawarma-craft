@@ -10,5 +10,6 @@
     }
   },
   "postCreateCommand": "npx --yes pnpm@11.25.0 install --frozen-lockfile && npx --yes pnpm@11.25.0 run build",
-  "postStartCommand": "bash .devcontainer/start-preview.sh"
+  "postStartCommand": "bash .devcontainer/start-preview.sh",
+  "postAttachCommand": "bash .devcontainer/start-preview.sh"
 }

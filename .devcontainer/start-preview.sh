@@ -17,16 +17,13 @@ if [[ ${CODESPACES:-false} == true ]]; then
   export SHAWARMA_CODESPACE_ORIGIN="https://$preview_host"
 fi
 
-nohup node node_modules/vite/bin/vite.js preview --host 0.0.0.0 --port "$port" --strictPort \
+# Separate the preview from the lifecycle command's process group.
+setsid --fork node node_modules/vite/bin/vite.js preview --host 0.0.0.0 --port "$port" --strictPort \
   </dev/null >/tmp/shawarma-craft-preview.log 2>&1 &
 
-preview_pid=$!
 for attempt in {1..30}; do
   if curl -fsS --max-time 2 "$session_url" > /dev/null 2>&1; then
     exit 0
-  fi
-  if ! kill -0 "$preview_pid" 2>/dev/null; then
-    break
   fi
   sleep 1
 done
