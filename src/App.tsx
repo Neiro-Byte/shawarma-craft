@@ -2,7 +2,7 @@ import {Component,Suspense,lazy,useEffect,useMemo,useRef,useState,type CSSProper
 import {RotateCcw,Volume2,VolumeX,ArrowUpRight,Check,Minus,Plus,X,Move,ArrowRight,Eye,Trash2,Flame,Search,BookOpen,Utensils,CupSoda,SlidersHorizontal,ArrowUp,ArrowDown,ListOrdered} from 'lucide-react';
 import {classicIds,menuSources,recipeToBatches,latestManualBatch,type Batch,type Phase} from './data';
 import {MAX_FILLINGS,type IngredientCategory,type IngredientId,type RecipePreset} from './domain';
-import {sound} from './sound';
+import {sound,stopSounds} from './sound';
 import SavedRecipePanel from './SavedRecipePanel';
 import ExtrasMenu from './ExtrasMenu';
 import MobileOrder from './MobileOrder';
@@ -349,7 +349,7 @@ export default function App(){
   const removing=batches.some(batch=>batch.id===id);
   if(!removing&&batches.length>=MAX_FILLINGS){setNotice(`В одном лаваше до ${MAX_FILLINGS} начинок. Убери один ингредиент, чтобы добавить другой.`);return;}
   setAnimateRecipe(false);
-  setNotice('');sound(id,!muted);
+  setNotice('');sound(removing?'remove':id,!muted);
   const nextKey=++seq.current;
   const ingredientSource=id==='chicken'?[...rotisserieLayout.cutPoint] as [number,number,number]:source;
   if(id==='chicken'&&!removing&&show3D&&sceneRequested)stageRef.current?.scrollIntoView({block:'start'});
@@ -634,7 +634,7 @@ export default function App(){
   <div className="signboard">
    <header className="header">
     <a className="brand" href="/" aria-label="Shawarma Craft"><span className="brand-mark" aria-hidden="true">SC</span><span className="brand-title">{catalog.settings.title}</span></a>
-    <div className="header-actions"><button type="button" className="icon-button" onClick={()=>setMuted(value=>!value)} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button><button type="button" className="icon-button" onClick={restart} aria-label="Начать заново"><RotateCcw size={19}/></button></div>
+    <div className="header-actions"><button type="button" className="icon-button" onClick={()=>{if(!muted)stopSounds();setMuted(value=>!value)}} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button><button type="button" className="icon-button" onClick={restart} aria-label="Начать заново"><RotateCcw size={19}/></button></div>
    </header>
    <section className="intro">
     <h1>{catalog.settings.slogan}</h1>
