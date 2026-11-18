@@ -54,6 +54,7 @@ button:focus-visible,a:focus-visible,.app .sc-extras button:focus-visible,.app .
   overflow: hidden;
 }
 .header {
+  flex-wrap: wrap;
   border-bottom: 1px solid #ffffff24;
   justify-content: space-between;
   align-items: center;
@@ -62,6 +63,8 @@ button:focus-visible,a:focus-visible,.app .sc-extras button:focus-visible,.app .
   display: flex;
 }
 .brand {
+  min-width: 0;
+  flex: 1 1 180px;
   color: inherit;
   font-family: var(--display);
   letter-spacing: .06em;
@@ -90,6 +93,38 @@ button:focus-visible,a:focus-visible,.app .sc-extras button:focus-visible,.app .
   flex-shrink: 0;
   gap: 8px;
   display: flex;
+}
+.audio-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #74726a;
+  border-radius: 5px;
+  background: #ffffff09;
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.audio-toggle svg { flex-shrink: 0; }
+.audio-toggle i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #99958b;
+}
+.audio-toggle[aria-pressed="true"] { border-color: #c7ab72; }
+.audio-toggle[aria-pressed="true"] i { background: var(--amber); }
+.audio-toggle:hover { background: #ffffff1c; }
+@media(max-width:520px) {
+  .header { gap: 9px; }
+  .header-actions { width: 100%; }
+  .header-actions .audio-toggle { flex: 1; padding-inline: 8px; }
+  .header-actions .icon-button { flex: 0 0 44px; }
 }
 .icon-button {
   width: 44px;

@@ -1,8 +1,9 @@
 import {Component,Suspense,lazy,useCallback,useEffect,useMemo,useRef,useState,type CSSProperties,type ReactNode} from 'react';
-import {RotateCcw,Volume2,VolumeX,ArrowUpRight,Check,Minus,Plus,X,Move,ArrowRight,Eye,Trash2,Flame,Search,BookOpen,Utensils,CupSoda,SlidersHorizontal,ArrowUp,ArrowDown,ListOrdered} from 'lucide-react';
+import {RotateCcw,Volume2,VolumeX,Music2,Music4,ArrowUpRight,Check,Minus,Plus,X,Move,ArrowRight,Eye,Trash2,Flame,Search,BookOpen,Utensils,CupSoda,SlidersHorizontal,ArrowUp,ArrowDown,ListOrdered} from 'lucide-react';
 import {classicIds,menuSources,recipeToBatches,latestManualBatch,type Batch,type Phase} from './data';
 import {MAX_FILLINGS,type IngredientCategory,type IngredientId,type RecipePreset} from './domain';
 import {sound,stopSounds,unlockAudio} from './sound';
+import {setMusicEnabled,unlockMusic,stopMusic} from './music';
 import SavedRecipePanel from './SavedRecipePanel';
 import ExtrasMenu from './ExtrasMenu';
 import MobileOrder from './MobileOrder';
@@ -21,6 +22,7 @@ import {rotisserieLayout} from './sceneLayout';
 import {clearKitchenRequest,kitchenRequest,kitchenStatusLabel,kitchenWrite,readKitchenTicket,rememberKitchenTicket,reserveKitchenRequest,type KitchenTicket,type SharedMenu} from './kitchenClient';
 import './style.css';
 const staticDemo=import.meta.env.VITE_STATIC_DEMO==='true';
+const musicPreferenceKey='shawarma.music.enabled.v1';
 const Kitchen=lazy(()=>import('./Scene'));
 const KitchenDashboard=lazy(()=>import('./KitchenDashboard'));
 const AdminPanel=lazy(()=>import('./AdminPanel'));
@@ -122,8 +124,26 @@ export default function App(){
  const [sceneSlow,setSceneSlow]=useState(false);
  const activeScene=useRef(scene);
  const [muted,setMuted]=useState(false),[inspect,setInspect]=useState(false),[grill,setGrill]=useState(savedDraft.draft?.grill??catalog.settings.grillDefault);
+ const [musicEnabled,setMusicOn]=useState(()=>{
+  try{return localStorage.getItem(musicPreferenceKey)!=='false'}catch{return true}
+ });
  const soundMuted=useRef(muted);soundMuted.current=muted;
  const playSceneSound=useCallback((kind:string)=>sound(kind,!soundMuted.current),[]);
+ useEffect(()=>{
+  setMusicEnabled(musicEnabled);
+  try{localStorage.setItem(musicPreferenceKey,String(musicEnabled))}catch{/* The toggle works even when saving is unavailable. */}
+ },[musicEnabled]);
+ useEffect(()=>()=>stopMusic(),[]);
+ function toggleMusic(){
+  const next=!musicEnabled;
+  setMusicEnabled(next);
+  if(next)unlockMusic();
+  setMusicOn(next);
+ }
+ function unlockInteractionAudio(){
+  unlockAudio(!muted);
+  unlockMusic();
+ }
  const [cookStatus,setCookStatus]=useState('Заворачиваем…');
  const [category,setCategory]=useState<IngredientCategory|'all'>('all'),[query,setQuery]=useState(''),[notice,setNotice]=useState('');
  const [quantities,setQuantities]=useState<ExtraQuantities>(savedDraft.draft?.extras??{});
@@ -638,11 +658,19 @@ export default function App(){
  if(adminOpen)return <Suspense fallback={<div className="app">Открываем редактор меню…</div>}>
   <AdminPanel catalog={catalog} onProductInfo={()=>{setAdminOpen(false);setInfoOpen(true)}} onPrices={()=>{setAdminOpen(false);setPricesOpen(true)}} onSave={applyCatalog} onClose={()=>{setAdminOpen(false);updateScene(activeScene.current.mode)}}/>
  </Suspense>;
- return <main className="app" onPointerDownCapture={()=>unlockAudio(!muted)} onKeyDownCapture={()=>unlockAudio(!muted)}>
+ return <main className="app" onPointerDownCapture={unlockInteractionAudio} onKeyDownCapture={unlockInteractionAudio}>
   <div className="signboard">
    <header className="header">
     <a className="brand" href={import.meta.env.BASE_URL} aria-label="Shawarma Craft"><span className="brand-mark" aria-hidden="true">SC</span><span className="brand-title">{catalog.settings.title}</span></a>
-    <div className="header-actions"><button type="button" className="icon-button" onClick={()=>{if(!muted)stopSounds();setMuted(value=>!value)}} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button><button type="button" className="icon-button" onClick={restart} aria-label="Начать заново"><RotateCcw size={19}/></button></div>
+    <div className="header-actions">
+     <button type="button" className="audio-toggle" onClick={toggleMusic} aria-pressed={musicEnabled} aria-label={musicEnabled?'Выключить фоновую музыку':'Включить фоновую музыку'} title={musicEnabled?'Выключить фоновую музыку':'Включить фоновую музыку'}>
+      {musicEnabled?<Music2 size={18} aria-hidden="true"/>:<Music4 size={18} aria-hidden="true"/>}<span>Музыка</span><i aria-hidden="true"/>
+     </button>
+     <button type="button" className="audio-toggle" onClick={()=>{if(!muted)stopSounds();setMuted(value=>!value)}} aria-pressed={!muted} aria-label={muted?'Включить звуки ингредиентов и заказа':'Выключить звуки ингредиентов и заказа'} title={muted?'Включить звуки ингредиентов и заказа':'Выключить звуки ингредиентов и заказа'}>
+      {muted?<VolumeX size={18} aria-hidden="true"/>:<Volume2 size={18} aria-hidden="true"/>}<span>Звуки</span><i aria-hidden="true"/>
+     </button>
+     <button type="button" className="icon-button" onClick={restart} aria-label="Начать заново" title="Начать заново"><RotateCcw size={19} aria-hidden="true"/></button>
+    </div>
    </header>
    <section className="intro">
     <h1>{catalog.settings.slogan}</h1>
