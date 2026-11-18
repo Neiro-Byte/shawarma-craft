@@ -215,5 +215,20 @@
     "processing": "highpass=f=70,afftdn=nf=-42:nr=7,lowpass=f=14000,equalizer=f=2800:t=q:w=0.8:g=1.5,loudnorm=I=-24:TP=-3:LRA=9,afade=t=in:d=0.012,afade=t=out:st=2.455:d=0.045",
     "bytes": 25964,
     "sha256": "ce68cbfa4a6184e9aa08944b7f26fc59608ca61d0a3b86093397c507c53a5e63"
+  },
+  {
+    "name": "remove",
+    "author": "thedapperdan",
+    "id": 199930,
+    "page": "https://freesound.org/people/thedapperdan/sounds/199930/",
+    "license": "CC0-1.0",
+    "preview": "https://cdn.freesound.org/previews/199/199930_11337-hq.mp3",
+    "bytes": 8684,
+    "file": "asmr-v2/remove.mp3",
+    "start": 2.9,
+    "duration": 0.78,
+    "processing": "highpass=f=70,afftdn=nf=-42:nr=7,lowpass=f=14000,loudnorm=I=-20:TP=-3:LRA=7,afade=t=in:d=0.018,afade=t=out:st=0.72:d=0.06",
+    "sha256": "3dad57beece4181e8a9e330913c5667bf64584b69edb8f1ec1cf140974366c42",
+    "description": "Actual recording of rice poured from a bag into a plastic bucket. Short steady-pour excerpt used as dry granular transfer/sifting Foley for removing shawarma contents; not literal shawarma ingredients. No subjective audition performed."
   }
 ]

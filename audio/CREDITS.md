@@ -30,3 +30,7 @@ Mapping: cucumber/pickles → cucumber; tomato → tomato; onion → spring onio
 The cacheable sample bank is versioned as asmr-v2, decoded once per sample, and plays through the existing mute/background/overlap controls. There is no looping ambience. While a clip is unavailable, the current action gets the procedural fallback; it is never replayed late.
 
 Auditory balance on actual phones and headphones still needs user listening; the automated checks verify delivery, mapping, timing, file integrity and resource limits.
+
+## ASMR removal cue
+
+`asmr-v2/remove.mp3` uses [Rice Pour by thedapperdan](https://freesound.org/people/thedapperdan/sounds/199930/), CC0 1.0. A 2.90–3.68 s excerpt of real rice being poured from a bag into a plastic bucket suggests transferring the removed filling into a container. This is granular-transfer Foley, not a literal recording of every shawarma ingredient. Mono 32 kHz / 80 kbit MP3; 70 Hz high-pass, gentle noise reduction, -20 LUFS target, -3 dBTP ceiling, short fades. It belongs to effects, not music.
