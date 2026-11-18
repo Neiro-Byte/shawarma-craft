@@ -9,7 +9,7 @@ const ingredientSounds:Record<IngredientId,FoodSound>={
  bbq:'sauce',tomatoSauce:'sauce',yogurt:'sauce',tahini:'sauce',
 };
 // Offline-processed, locally hosted CC0 ASMR Foley. See public/audio/CREDITS.md.
-const recordingNames=['cucumber','tomato','onion','cabbage','vegetable','leaf','carrot','meat-cut','meat-land','sauce','fries','fold','bread','grill'] as const;
+const recordingNames=['cucumber','tomato','onion','cabbage','vegetable','leaf','carrot','meat-cut','meat-land','sauce','fries','fold','bread','grill','remove'] as const;
 type RecordingName=typeof recordingNames[number];
 const ingredientRecordings:Partial<Record<IngredientId,RecordingName>>={
  cucumber:'cucumber',pickle:'cucumber',tomato:'tomato',onion:'onion',lettuce:'leaf',cabbage:'cabbage',
@@ -17,7 +17,7 @@ const ingredientRecordings:Partial<Record<IngredientId,RecordingName>>={
  chicken:'meat-land',beef:'meat-land',fries:'fries',falafel:'fries',
  white:'sauce',hot:'sauce',cheeseSauce:'sauce',bbq:'sauce',tomatoSauce:'sauce',yogurt:'sauce',tahini:'sauce',
 };
-const stageRecordings:Partial<Record<string,RecordingName>>={cut:'meat-cut',fold:'fold',bread:'bread',grill:'grill'};
+const stageRecordings:Partial<Record<string,RecordingName>>={cut:'meat-cut',fold:'fold',bread:'bread',grill:'grill',remove:'remove'};
 const recordings=new Map<RecordingName,AudioBuffer>();
 const loading=new Set<RecordingName>();
 const failedAt=new Map<RecordingName,number>();
@@ -197,7 +197,7 @@ export function unlockAudio(enabled:boolean):void{
 export function sound(kind:string,enabled:boolean){
  if(!enabled||document.hidden)return;
  const timestamp=performance.now();
- if(timestamp-lastSoundAt<35)return;
+ if(kind!=='remove'&&timestamp-lastSoundAt<35)return;
  lastSoundAt=timestamp;
  try{
   const ctx=audio();

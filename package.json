@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node scripts/check-catalog.mjs && node scripts/check-catalog-settings.mjs && node scripts/check-saved-recipe.mjs && node scripts/check-order-draft.mjs && node scripts/check-pricing.mjs && node scripts/check-last-order.mjs && node scripts/check-product-info.mjs && node scripts/check-ingredient-flight.mjs && node scripts/check-pantry-models.mjs && node scripts/check-pantry-stations.mjs && node scripts/check-scene-layout.mjs && node scripts/check-sound.mjs && node scripts/check-music.mjs && tsc --noEmit",
+    "check": "node scripts/check-catalog.mjs && node scripts/check-catalog-settings.mjs && node scripts/check-saved-recipe.mjs && node scripts/check-order-draft.mjs && node scripts/check-pricing.mjs && node scripts/check-last-order.mjs && node scripts/check-product-info.mjs && node scripts/check-ingredient-flight.mjs && node scripts/check-pantry-models.mjs && node scripts/check-pantry-stations.mjs && node scripts/check-scene-layout.mjs && node scripts/check-sound.mjs && node scripts/check-music.mjs && node scripts/check-undo.mjs && tsc --noEmit",
     "backup:kitchen": "node scripts/backup-kitchen.mjs"
   },
   "dependencies": {

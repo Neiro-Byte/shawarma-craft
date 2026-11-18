@@ -169,13 +169,13 @@ const beforeLoad = sources.length;
 releaseRecordings();
 await new Promise(resolve => setTimeout(resolve, 0));
 assert.equal(sources.length, beforeLoad, 'Loading after mute/stop must never replay old events');
-assert.equal(requests.length, 14, 'Every recording is fetched once, including repeated gestures');
+assert.equal(requests.length, 15, 'Every recording is fetched once, including repeated gestures');
 assert(requests.every(url => url.startsWith('/shawarma-craft/audio/asmr-v2/')), 'Audio honors the published subdirectory');
 const expectedRecordings = {
  cucumber: 'cucumber.mp3', pickle: 'cucumber.mp3', tomato: 'tomato.mp3', onion: 'onion.mp3',
  cabbage: 'cabbage.mp3', lettuce: 'leaf.mp3', carrot: 'carrot.mp3', pepper: 'vegetable.mp3',
  jalapeno: 'vegetable.mp3', mushroom: 'vegetable.mp3', chicken: 'meat-land.mp3', beef: 'meat-land.mp3', cut: 'meat-cut.mp3',
- fries: 'fries.mp3', falafel: 'fries.mp3', fold: 'fold.mp3', bread: 'bread.mp3', grill: 'grill.mp3',
+ fries: 'fries.mp3', falafel: 'fries.mp3', fold: 'fold.mp3', bread: 'bread.mp3', grill: 'grill.mp3', remove: 'remove.mp3',
 };
 for (const [kind, file] of Object.entries(expectedRecordings)) {
  const before = sources.length;
@@ -194,7 +194,7 @@ sounds.stopSounds();
 timestamp += 31000;
 sounds.unlockAudio(true);
 await new Promise(resolve => setTimeout(resolve, 0));
-assert.equal(requests.length, 15, 'Only the failed recording retries after the backoff');
+assert.equal(requests.length, 16, 'Only the failed recording retries after the backoff');
 for (const kind of ['white', 'hot', 'bbq', 'cheeseSauce', 'tomatoSauce', 'yogurt', 'tahini']) {
  before = sources.length;
  play(kind);
@@ -212,7 +212,7 @@ delete globalThis.AudioContext;
 assert.doesNotThrow(() => play('ready'), 'Unavailable browser audio must leave the constructor usable');
 
 const manifest = JSON.parse(readFileSync(new URL('../public/audio/manifest.json', import.meta.url), 'utf8'));
-assert.equal(manifest.length, 14);
+assert.equal(manifest.length, 15);
 let totalBytes = 0;
 for (const clip of manifest) {
  const data = readFileSync(new URL('../public/audio/' + clip.file, import.meta.url));

@@ -391,9 +391,15 @@ export default function App(){
   },true);
  }
  function undoLastIngredient(){
-  const lastIngredient=lastManualIngredient??batches.at(-1);
-  if(activeOrder.current||!lastIngredient)return;
-  add(lastIngredient.id);
+  if(activeOrder.current||!batches.length)return;
+  setAnimateRecipe(false);
+  setNotice('');
+  stopSounds();
+  sound('remove',!muted);
+  updateActiveDraft(draft=>{
+   const lastIngredient=latestManualBatch(draft.batches)??draft.batches.at(-1);
+   return lastIngredient?{...draft,batches:draft.batches.filter(batch=>batch.key!==lastIngredient.key)}:draft;
+  });
  }
  function changeIngredientOrder(index:number,offset:number){
   const nextIndex=index+offset;
