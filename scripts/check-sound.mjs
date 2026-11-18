@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import ts from 'typescript';
 
 // Exercise scheduling and lifecycle against the real module without an audio device.
@@ -168,12 +169,13 @@ const beforeLoad = sources.length;
 releaseRecordings();
 await new Promise(resolve => setTimeout(resolve, 0));
 assert.equal(sources.length, beforeLoad, 'Loading after mute/stop must never replay old events');
-assert.equal(requests.length, 8, 'Every recording is fetched once, including repeated gestures');
-assert(requests.every(url => url.startsWith('/shawarma-craft/audio/')), 'Audio honors the published subdirectory');
+assert.equal(requests.length, 14, 'Every recording is fetched once, including repeated gestures');
+assert(requests.every(url => url.startsWith('/shawarma-craft/audio/asmr-v2/')), 'Audio honors the published subdirectory');
 const expectedRecordings = {
  cucumber: 'cucumber.mp3', pickle: 'cucumber.mp3', tomato: 'tomato.mp3', onion: 'onion.mp3',
- cabbage: 'cabbage.mp3', lettuce: 'cabbage.mp3', carrot: 'vegetable.mp3', pepper: 'vegetable.mp3',
+ cabbage: 'cabbage.mp3', lettuce: 'leaf.mp3', carrot: 'carrot.mp3', pepper: 'vegetable.mp3',
  jalapeno: 'vegetable.mp3', mushroom: 'vegetable.mp3', chicken: 'meat-land.mp3', beef: 'meat-land.mp3', cut: 'meat-cut.mp3',
+ fries: 'fries.mp3', falafel: 'fries.mp3', fold: 'fold.mp3', bread: 'bread.mp3', grill: 'grill.mp3',
 };
 for (const [kind, file] of Object.entries(expectedRecordings)) {
  const before = sources.length;
@@ -192,7 +194,7 @@ sounds.stopSounds();
 timestamp += 31000;
 sounds.unlockAudio(true);
 await new Promise(resolve => setTimeout(resolve, 0));
-assert.equal(requests.length, 9, 'Only the failed recording retries after the backoff');
+assert.equal(requests.length, 15, 'Only the failed recording retries after the backoff');
 for (const kind of ['white', 'hot', 'bbq', 'cheeseSauce', 'tomatoSauce', 'yogurt', 'tahini']) {
  before = sources.length;
  play(kind);
@@ -209,4 +211,17 @@ currentContext.state = 'closed';
 delete globalThis.AudioContext;
 assert.doesNotThrow(() => play('ready'), 'Unavailable browser audio must leave the constructor usable');
 
-console.log('PASS sound: real recording/product mapping, subdirectory loading, failed-download fallback/retry, no stale playback, gesture unlock, bounded resources and mute/background cleanup.');
+const manifest = JSON.parse(readFileSync(new URL('../public/audio/manifest.json', import.meta.url), 'utf8'));
+assert.equal(manifest.length, 14);
+let totalBytes = 0;
+for (const clip of manifest) {
+ const data = readFileSync(new URL('../public/audio/' + clip.file, import.meta.url));
+ totalBytes += data.length;
+ assert.equal(data.length, clip.bytes, 'Shipped audio size matches its provenance manifest');
+ assert.equal(createHash('sha256').update(data).digest('hex'), clip.sha256, 'Shipped audio matches the processed recording');
+ assert.equal(clip.license, 'CC0-1.0');
+ assert(clip.duration > 0 && clip.duration <= 2.5);
+ assert(clip.file.startsWith('asmr-v2/'), 'New sound bank cannot reuse stale cached samples');
+}
+assert(totalBytes < 200000, 'ASMR assets must remain small enough for mobile loading');
+console.log('PASS sound: ASMR bank integrity/size, real recording/product mapping, subdirectory loading, failed-download fallback/retry, no stale playback, gesture unlock, bounded resources and mute/background cleanup.');

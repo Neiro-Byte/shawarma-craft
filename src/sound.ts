@@ -8,20 +8,24 @@ const ingredientSounds:Record<IngredientId,FoodSound>={
  mushroom:'soft',jalapeno:'crunch',beans:'grains',corn:'grains',cheeseSauce:'sauce',
  bbq:'sauce',tomatoSauce:'sauce',yogurt:'sauce',tahini:'sauce',
 };
-// Small, locally hosted CC0 recordings. Credits and edits are in public/audio/CREDITS.md.
-const recordingFiles={
- cucumber:'cucumber',juicy:'tomato',onion:'onion',leaf:'cabbage',cabbage:'cabbage',
- crunch:'vegetable',soft:'vegetable',meat:'meat-land',sauce:'sauce',
-} as const;
-type RecordingName='cucumber'|'tomato'|'onion'|'cabbage'|'vegetable'|'meat-cut'|'meat-land'|'sauce';
+// Offline-processed, locally hosted CC0 ASMR Foley. See public/audio/CREDITS.md.
+const recordingNames=['cucumber','tomato','onion','cabbage','vegetable','leaf','carrot','meat-cut','meat-land','sauce','fries','fold','bread','grill'] as const;
+type RecordingName=typeof recordingNames[number];
+const ingredientRecordings:Partial<Record<IngredientId,RecordingName>>={
+ cucumber:'cucumber',pickle:'cucumber',tomato:'tomato',onion:'onion',lettuce:'leaf',cabbage:'cabbage',
+ carrot:'carrot',pepper:'vegetable',jalapeno:'vegetable',mushroom:'vegetable',
+ chicken:'meat-land',beef:'meat-land',fries:'fries',falafel:'fries',
+ white:'sauce',hot:'sauce',cheeseSauce:'sauce',bbq:'sauce',tomatoSauce:'sauce',yogurt:'sauce',tahini:'sauce',
+};
+const stageRecordings:Partial<Record<string,RecordingName>>={cut:'meat-cut',fold:'fold',bread:'bread',grill:'grill'};
 const recordings=new Map<RecordingName,AudioBuffer>();
 const loading=new Set<RecordingName>();
 const failedAt=new Map<RecordingName,number>();
 function loadRecordings(ctx:AudioContext){
- for(const name of ['cucumber','tomato','onion','cabbage','vegetable','meat-cut','meat-land','sauce'] as const){
+ for(const name of recordingNames){
   if(recordings.has(name)||loading.has(name)||performance.now()-(failedAt.get(name)??-Infinity)<30000)continue;
   loading.add(name);
-  void fetch(`${import.meta.env.BASE_URL}audio/${name}.mp3`)
+  void fetch(`${import.meta.env.BASE_URL}audio/asmr-v2/${name}.mp3`)
    .then(response=>{if(!response.ok)throw new Error('Audio unavailable');return response.arrayBuffer()})
    .then(data=>ctx.decodeAudioData(data))
    .then(buffer=>{recordings.set(name,buffer);failedAt.delete(name)})
@@ -30,8 +34,7 @@ function loadRecordings(ctx:AudioContext){
  }
 }
 function recorded(ctx:AudioContext,kind:string,at:number){
- const profile=ingredientSounds[kind as IngredientId];
- const name=kind==='cut'?'meat-cut':kind==='pickle'?'cucumber':kind==='carrot'?'vegetable':profile&&Object.hasOwn(recordingFiles,profile)?recordingFiles[profile as keyof typeof recordingFiles]:undefined;
+ const name=Object.hasOwn(ingredientRecordings,kind)?ingredientRecordings[kind as IngredientId]:stageRecordings[kind];
  const buffer=name&&recordings.get(name);
  if(!buffer)return false;
  const source=ctx.createBufferSource();
@@ -60,9 +63,11 @@ function audio(){
  output=context.createGain();
  output.gain.value=.45;
  const limiter=context.createDynamicsCompressor();
- limiter.threshold.value=-18;
- limiter.knee.value=12;
- limiter.ratio.value=8;
+ limiter.threshold.value=-10;
+ limiter.knee.value=6;
+ limiter.ratio.value=4;
+ limiter.attack.value=.006;
+ limiter.release.value=.12;
  output.connect(limiter);
  limiter.connect(context.destination);
  noise=context.createBuffer(1,context.sampleRate,context.sampleRate);
