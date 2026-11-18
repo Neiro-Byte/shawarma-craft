@@ -369,8 +369,9 @@ export default function App(){
   },true);
  }
  function undoLastIngredient(){
-  if(activeOrder.current||!lastManualIngredient)return;
-  add(lastManualIngredient.id);
+  const lastIngredient=lastManualIngredient??batches.at(-1);
+  if(activeOrder.current||!lastIngredient)return;
+  add(lastIngredient.id);
  }
  function changeIngredientOrder(index:number,offset:number){
   const nextIndex=index+offset;
@@ -693,7 +694,7 @@ export default function App(){
     <div className="stage-top"><span className="live-label" role="status"><i/>{stageLabel}</span></div>
     {sceneRequested?<SceneBoundary key={scene.generation} onUnavailable={sceneFailed}>
      <Suspense fallback={<div className="fallback"><span>🌯</span><p>Разогреваем кухню…</p></div>}>
-      <Kitchen onSound={playSceneSound} onUndoLastIngredient={lastManualIngredient&&!locked?undoLastIngredient:undefined} ingredientNames={ingredientNames} preparing={inPreparation} animateRecipe={animateRecipe} availableIngredientIds={availableIngredientIds} batches={recipeBatches?.[0]??batches} phase={phase} inspect={inspect} grill={order?.recipes?.grill??grill}
+      <Kitchen onSound={playSceneSound} onUndoLastIngredient={batches.length&&!locked?undoLastIngredient:undefined} ingredientNames={ingredientNames} preparing={inPreparation} animateRecipe={animateRecipe} availableIngredientIds={availableIngredientIds} batches={recipeBatches?.[0]??batches} phase={phase} inspect={inspect} grill={order?.recipes?.grill??grill}
        recipeBatches={recipeBatches}
        shawarmaQuantity={order?.usesScene?order.snapshot.shawarmaQuantity:undefined}
        servingOrder={servingOrder} onServed={onServed}
@@ -794,7 +795,7 @@ export default function App(){
   <LastOrderPanel catalog={catalog} pricing={pricing} disabled={locked} refreshKey={lastOrderRefresh} onRestore={restoreLastOrder}/>
   <SavedRecipePanel ingredientIds={batches.map(batch=>batch.id)} grill={grill} title={recipeTitle} disabled={locked||shawarmaQuantity===0} onRestore={restoreSaved}/>
   <section id="fillings" className={'pantry '+(locked?'pantry-locked':'')} aria-label="Ингредиенты" tabIndex={-1}>
-   <div className="pantry-heading"><div><h2>Начинки и соусы</h2><p>{locked?'Состав заказа зафиксирован':`Для шаурмы ${activeIndex+1}. Нажми на ингредиент, чтобы добавить или убрать его.`}</p></div><label className="ingredient-search"><Search size={16} aria-hidden="true"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ингредиент или соус" aria-label="Поиск ингредиентов"/></label></div>
+   <div className="pantry-heading"><div><h2>Начинки и соусы</h2><p>{locked?'Состав заказа зафиксирован':`Для шаурмы ${activeIndex+1}. Нажми на ингредиент, чтобы добавить или убрать его.${show3D&&batches.length?' Касание лаваша убирает последнюю начинку.':''}`}</p></div><label className="ingredient-search"><Search size={16} aria-hidden="true"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ингредиент или соус" aria-label="Поиск ингредиентов"/></label></div>
    <div className="category-tabs" aria-label="Категории ингредиентов">{(Object.keys(categoryLabels) as (IngredientCategory|'all')[]).map(value=><button key={value} onClick={()=>setCategory(value)} aria-pressed={category===value} className={category===value?'active':''}>{categoryLabels[value]}<small>{ingredients.filter(item=>item.available&&(value==='all'||item.category===value)).length}</small></button>)}</div>
    {visibleIngredients.length?<div className={'ingredient-carousel'+(category!=='all'||query.trim()?' filtered-ingredients':'')}>{visibleIngredients.map(item=>{const selected=batches.some(batch=>batch.id===item.id);return <button key={item.id} disabled={locked} onClick={()=>add(item.id)} className={'ingredient '+(selected?'selected':'')} aria-pressed={selected} aria-label={item.name} style={{'--food-color':item.color} as CSSProperties}><span className="ingredient-badge" aria-hidden="true">{selected?<Check size={13}/>:<Plus size={13}/>}</span><span className="ingredient-art" aria-hidden="true">{item.emoji}</span><b>{item.name}</b><small>{item.note}</small></button>})}</div>:<div className="no-ingredients"><p>Такого ингредиента пока нет. Попробуй другое название или категорию.</p><button onClick={()=>{setQuery('');setCategory('all')}}>Показать всё</button></div>}
    {!locked&&<div className="pantry-actions"><a className="order-jump" href="#order"><Flame size={16} aria-hidden="true"/> К приготовлению</a></div>}

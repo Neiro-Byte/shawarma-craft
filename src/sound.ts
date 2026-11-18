@@ -8,6 +8,46 @@ const ingredientSounds:Record<IngredientId,FoodSound>={
  mushroom:'soft',jalapeno:'crunch',beans:'grains',corn:'grains',cheeseSauce:'sauce',
  bbq:'sauce',tomatoSauce:'sauce',yogurt:'sauce',tahini:'sauce',
 };
+// Small, locally hosted CC0 recordings. Credits and edits are in public/audio/CREDITS.md.
+const recordingFiles={
+ cucumber:'cucumber',juicy:'tomato',onion:'onion',leaf:'cabbage',cabbage:'cabbage',
+ crunch:'vegetable',soft:'vegetable',meat:'meat-land',sauce:'sauce',
+} as const;
+type RecordingName='cucumber'|'tomato'|'onion'|'cabbage'|'vegetable'|'meat-cut'|'meat-land'|'sauce';
+const recordings=new Map<RecordingName,AudioBuffer>();
+const loading=new Set<RecordingName>();
+const failedAt=new Map<RecordingName,number>();
+function loadRecordings(ctx:AudioContext){
+ for(const name of ['cucumber','tomato','onion','cabbage','vegetable','meat-cut','meat-land','sauce'] as const){
+  if(recordings.has(name)||loading.has(name)||performance.now()-(failedAt.get(name)??-Infinity)<30000)continue;
+  loading.add(name);
+  void fetch(`${import.meta.env.BASE_URL}audio/${name}.mp3`)
+   .then(response=>{if(!response.ok)throw new Error('Audio unavailable');return response.arrayBuffer()})
+   .then(data=>ctx.decodeAudioData(data))
+   .then(buffer=>{recordings.set(name,buffer);failedAt.delete(name)})
+   .catch(()=>{failedAt.set(name,performance.now())})
+   .finally(()=>loading.delete(name));
+ }
+}
+function recorded(ctx:AudioContext,kind:string,at:number){
+ const profile=ingredientSounds[kind as IngredientId];
+ const name=kind==='cut'?'meat-cut':kind==='pickle'?'cucumber':kind==='carrot'?'vegetable':profile&&Object.hasOwn(recordingFiles,profile)?recordingFiles[profile as keyof typeof recordingFiles]:undefined;
+ const buffer=name&&recordings.get(name);
+ if(!buffer)return false;
+ const source=ctx.createBufferSource();
+ const gain=ctx.createGain();
+ source.buffer=buffer;
+ const duration=buffer.duration;
+ // Short fades prevent clicks when clips overlap or end. One decoded buffer per recording.
+ gain.gain.setValueAtTime(0,at);
+ gain.gain.linearRampToValueAtTime(.95,at+.008);
+ gain.gain.setValueAtTime(.95,at+Math.max(.008,duration-.035));
+ gain.gain.linearRampToValueAtTime(0,at+duration);
+ source.connect(gain);gain.connect(output!);
+ track(source,[gain]);
+ source.start(at,0,duration);source.stop(at+duration+.01);
+ return true;
+}
 let context:AudioContext|undefined;
 let output:GainNode|undefined;
 let noise:AudioBuffer|undefined;
@@ -145,6 +185,7 @@ export function unlockAudio(enabled:boolean):void{
  try{
   const ctx=audio();
   if(ctx.state==='suspended')void ctx.resume().catch(()=>{});
+  loadRecordings(ctx);
  }catch{/* Browsers can disable audio while leaving the constructor available. */}
 }
 
@@ -156,9 +197,11 @@ export function sound(kind:string,enabled:boolean){
  try{
   const ctx=audio();
   if(ctx.state==='suspended')void ctx.resume().catch(()=>{});
+  loadRecordings(ctx);
   // Bound overlapping sounds during rapid taps on a phone.
   if(playing.size>24)stopSounds();
   const at=ctx.currentTime;
+  if(recorded(ctx,kind,at))return;
   if(Object.hasOwn(ingredientSounds,kind)){
    food(ctx,ingredientSounds[kind as IngredientId],at);
   }else if(kind==='ready'){

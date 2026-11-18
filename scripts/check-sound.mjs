@@ -91,7 +91,19 @@ globalThis.document = {
 globalThis.AudioContext = MockAudioContext;
 Object.defineProperty(globalThis, 'performance', { configurable: true, value: { now: () => timestamp } });
 
-const sourceText = readFileSync(new URL('../src/sound.ts', import.meta.url), 'utf8');
+const requests = [];
+let releaseRecordings;
+const recordingGate = new Promise(resolve => { releaseRecordings = resolve; });
+let sauceAttempts = 0;
+globalThis.fetch = async url => {
+  requests.push(url);
+  await recordingGate;
+  if (url.endsWith('/sauce.mp3') && ++sauceAttempts === 1) return { ok: false };
+  return { ok: true, arrayBuffer: async () => ({ recording: url.split('/').at(-1), duration: .7 }) };
+};
+MockAudioContext.prototype.decodeAudioData = async function(data) { return data; };
+
+const sourceText = readFileSync(new URL('../src/sound.ts', import.meta.url), 'utf8').replaceAll('import.meta.env.BASE_URL', JSON.stringify('/shawarma-craft/'));
 const compiled = ts.transpileModule(sourceText, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText;
@@ -152,8 +164,49 @@ listeners.get('visibilitychange')();
 assert.equal(active().length, 0, 'Backgrounding must immediately cancel scheduled sounds');
 
 document.hidden = false;
+const beforeLoad = sources.length;
+releaseRecordings();
+await new Promise(resolve => setTimeout(resolve, 0));
+assert.equal(sources.length, beforeLoad, 'Loading after mute/stop must never replay old events');
+assert.equal(requests.length, 8, 'Every recording is fetched once, including repeated gestures');
+assert(requests.every(url => url.startsWith('/shawarma-craft/audio/')), 'Audio honors the published subdirectory');
+const expectedRecordings = {
+ cucumber: 'cucumber.mp3', pickle: 'cucumber.mp3', tomato: 'tomato.mp3', onion: 'onion.mp3',
+ cabbage: 'cabbage.mp3', lettuce: 'cabbage.mp3', carrot: 'vegetable.mp3', pepper: 'vegetable.mp3',
+ jalapeno: 'vegetable.mp3', mushroom: 'vegetable.mp3', chicken: 'meat-land.mp3', beef: 'meat-land.mp3', cut: 'meat-cut.mp3',
+};
+for (const [kind, file] of Object.entries(expectedRecordings)) {
+ const before = sources.length;
+ play(kind);
+ const created = sources.slice(before);
+ assert.equal(created.length, 1, `${kind} plays exactly one recording without synthetic overlap`);
+ assert.equal(created[0].buffer.recording, file, `${kind} uses the corresponding food recording`);
+ assert.equal(created[0].loop, undefined, 'Short food clips do not loop');
+ assert(created[0].duration <= 1.6);
+ sounds.stopSounds();
+}
+let before = sources.length;
+play('white');
+assert(sources.length - before > 1, 'A failed download immediately uses fallback audio');
+sounds.stopSounds();
+timestamp += 31000;
+sounds.unlockAudio(true);
+await new Promise(resolve => setTimeout(resolve, 0));
+assert.equal(requests.length, 9, 'Only the failed recording retries after the backoff');
+for (const kind of ['white', 'hot', 'bbq', 'cheeseSauce', 'tomatoSauce', 'yogurt', 'tahini']) {
+ before = sources.length;
+ play(kind);
+ assert.equal(sources.length, before + 1);
+ assert.equal(sources.at(-1).buffer.recording, 'sauce.mp3', `${kind} uses bottle squeeze`);
+ sounds.stopSounds();
+}
+play('cucumber');
+document.hidden = true;
+listeners.get('visibilitychange')();
+assert.equal(active().length, 0, 'Backgrounding also cancels recorded samples');
+document.hidden = false;
 currentContext.state = 'closed';
 delete globalThis.AudioContext;
 assert.doesNotThrow(() => play('ready'), 'Unavailable browser audio must leave the constructor usable');
 
-console.log('PASS sound: all ingredients and cooking stages, gesture unlock, shared resources, bounded sources, mute and hidden-tab cleanup.');
+console.log('PASS sound: real recording/product mapping, subdirectory loading, failed-download fallback/retry, no stale playback, gesture unlock, bounded resources and mute/background cleanup.');

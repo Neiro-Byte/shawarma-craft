@@ -31,6 +31,7 @@ function aimAtTray(target:THREE.Vector3,tray:THREE.Vector3) {
  return target.set(tray.x,tray.y+.52,tray.z+.14);
 }
 type WorldProps={
+ onUndoLastIngredient?:()=>void;
  batches:Batch[];
  animateRecipe?:boolean;
  recipeBatches?:readonly Batch[][];
@@ -384,7 +385,45 @@ function ContactGrill({root,lid,heating,enabled}:{enabled:boolean;root:React.Ref
  </group>
 }
 function Steam(){const ref=useRef<THREE.InstancedMesh>(null!);const dummy=useMemo(()=>new THREE.Object3D(),[]);useFrame(({clock})=>{for(let i=0;i<9;i++){const q=(clock.elapsedTime*.45+i/9)%1;dummy.position.set(Math.sin(i*2.4)*.8+Math.sin(q*5+i)*.1,1.6+q*1.4,Math.cos(i*2.4)*1.1);dummy.scale.setScalar(Math.sin(q*Math.PI)*.13);dummy.updateMatrix();ref.current.setMatrixAt(i,dummy.matrix)}ref.current.instanceMatrix.needsUpdate=true});return <instancedMesh ref={ref} args={[undefined,undefined,9]}><sphereGeometry args={[1,8,6]}/><meshBasicMaterial color="#fff6df" transparent opacity={.22} depthWrite={false}/></instancedMesh>}
-function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,onStage,onReady,onSound,shawarmaQuantity=1,onIngredientPick,availableIngredientIds,stationView,servingOrder,onServed,compact,shadowSize,reduceQuality,onCutActiveChange,liftSauce,liftedSauces,onLatestIngredient}:WorldProps&{compact:boolean;shadowSize:number;reduceQuality:()=>void;onCutActiveChange?:(active:boolean)=>void;liftSauce:LiftSauce;liftedSauces:ReadonlyMap<IngredientId,number>;onLatestIngredient:(id:IngredientId|undefined)=>void}){
+function BreadUndoTarget({enabled,onUndo,children}:{enabled:boolean;onUndo?:()=>void;children:React.ReactNode}){
+ const gesture=useRef<{x:number;y:number;pointerId:number;dragged:boolean}|null>(null);
+ const canvas=useThree(state=>state.gl.domElement);
+ useEffect(()=>{
+  gesture.current=null;
+  if(!enabled)return;
+  const pointers=new Set<number>();
+  const down=(event:PointerEvent)=>{
+   if(pointers.size===0)gesture.current={x:event.clientX,y:event.clientY,pointerId:event.pointerId,dragged:event.button!==0};
+   pointers.add(event.pointerId);
+   if(pointers.size>1&&gesture.current)gesture.current.dragged=true;
+  };
+  const move=(event:PointerEvent)=>{
+   const current=gesture.current;
+   if(current&&current.pointerId===event.pointerId&&Math.hypot(event.clientX-current.x,event.clientY-current.y)>6)current.dragged=true;
+  };
+  const up=(event:PointerEvent)=>{move(event);pointers.delete(event.pointerId)};
+  const cancel=(event:PointerEvent)=>{pointers.delete(event.pointerId);gesture.current=null};
+  canvas.addEventListener('pointerdown',down,true);
+  canvas.addEventListener('pointermove',move,true);
+  canvas.addEventListener('pointerup',up,true);
+  canvas.addEventListener('pointercancel',cancel,true);
+  return()=>{
+   canvas.removeEventListener('pointerdown',down,true);
+   canvas.removeEventListener('pointermove',move,true);
+   canvas.removeEventListener('pointerup',up,true);
+   canvas.removeEventListener('pointercancel',cancel,true);
+   gesture.current=null;
+  };
+ },[canvas,enabled]);
+ return <group name="shawarma-undo-target" onClick={enabled?event=>{
+  const current=gesture.current;
+  gesture.current=null;
+  if(!current||current.dragged||event.delta>6)return;
+  event.stopPropagation();
+  onUndo?.();
+ }:undefined}>{children}</group>;
+}
+function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,onStage,onReady,onSound,shawarmaQuantity=1,onIngredientPick,availableIngredientIds,stationView,servingOrder,onServed,compact,shadowSize,reduceQuality,onCutActiveChange,liftSauce,liftedSauces,onLatestIngredient,onUndoLastIngredient}:WorldProps&{compact:boolean;shadowSize:number;reduceQuality:()=>void;onCutActiveChange?:(active:boolean)=>void;liftSauce:LiftSauce;liftedSauces:ReadonlyMap<IngredientId,number>;onLatestIngredient:(id:IngredientId|undefined)=>void}){
  const dish=useRef<THREE.Group>(null!),filling=useRef<THREE.Group>(null!),grillRoot=useRef<THREE.Group>(null!),lid=useRef<THREE.Group>(null!);const [wrapped,setWrapped]=useState(false),[heating,setHeating]=useState(false),[toasted,setToasted]=useState(false);const callbacks=useRef({onStage,onReady,onServed,onSound});callbacks.current={onStage,onReady,onServed,onSound};const p=useRef({value:0});
  const camera=useThree(state=>state.camera),invalidate=useThree(state=>state.invalidate),size=useThree(state=>state.size);
  const controls=useRef<React.ComponentRef<typeof OrbitControls>>(null);
@@ -661,6 +700,7 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
   </group>)}
   {(!hasServingOrder||rollOnTray)&&<group position={rollOnTray?[trayRollCenter,rollY,0]:[0,0,0]}>
    <group ref={dish}>
+    <BreadUndoTarget enabled={phase==='build'&&!hasServingOrder&&!wrapped&&!!onUndoLastIngredient} onUndo={onUndoLastIngredient}>
     <Bread progress={p} texture={texture}/>
     <group ref={filling} visible={!wrapped}>
      {visibleLayers.map(b=><group key={activeRecipeIndex+':'+b.key}>
@@ -679,6 +719,7 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
       </group>
      </group>)}
     </>}
+    </BreadUndoTarget>
    </group>
   </group>}
  </group>
@@ -760,7 +801,7 @@ export default function Scene({onUnavailable,onAvailable,onReady,onServed,prepar
  },[renderer]);
  return <div className="ingredient-scene" role="group" aria-label="3D-кухня и лотки ингредиентов" style={{position:'relative',width:'100%',height:'100%'}}>
   <Canvas className="kitchen-canvas" frameloop="demand" shadows camera={{position:kitchenCamera,fov:38}} dpr={dpr} gl={{antialias:true,powerPreference:'low-power'}} onCreated={({gl,invalidate})=>{recovery.current=gl.getContext().getExtension('WEBGL_lose_context');redraw.current=invalidate;setRenderer(gl);invalidate();available.current?.()}} fallback="3D недоступно. Каталог ингредиентов остаётся доступен. Для 3D включите WebGL и попробуйте собрать заново.">
-   {!contextLost&&<World {...worldProps} stationView={{foodPage:foodStation.page,saucePage:sauceStationPage.page,slots:stationSlots}} onCutActiveChange={setCutting} onLatestIngredient={setLatestIngredient} liftSauce={liftSauce} liftedSauces={liftedSauces} compact={compact} shadowSize={shadowSize} reduceQuality={reduceQuality} onReady={()=>{if(!reported.current)onReady()}} onServed={id=>{if(!reported.current)onServed?.(id)}}/>}
+   {!contextLost&&<World {...worldProps} onUndoLastIngredient={onUndoLastIngredient} stationView={{foodPage:foodStation.page,saucePage:sauceStationPage.page,slots:stationSlots}} onCutActiveChange={setCutting} onLatestIngredient={setLatestIngredient} liftSauce={liftSauce} liftedSauces={liftedSauces} compact={compact} shadowSize={shadowSize} reduceQuality={reduceQuality} onReady={()=>{if(!reported.current)onReady()}} onServed={id=>{if(!reported.current)onServed?.(id)}}/>}
   </Canvas>
   <div className="scene-last-ingredient" role="status" aria-atomic="true">
    {traySelectionEnabled&&latestItem&&<>

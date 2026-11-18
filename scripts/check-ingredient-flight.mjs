@@ -194,10 +194,15 @@ function componentHarness(name,parentMatrix=new Matrix4()){
  const scene=new Group();
  scene.add(shelfBottle);
  const invalidate=()=>{};
+ const pointerListeners=new Map();
+ const canvas={
+  addEventListener(type,listener,capture){assert.equal(capture,true);pointerListeners.set(type,listener)},
+  removeEventListener(type,listener){assert.equal(pointerListeners.get(type),listener);pointerListeners.delete(type)},
+ };
  const jsx=(type,props)=>({type,props});
  const context={
   THREE,gsap,piecePose,cheesePose,saucePoint,rotisserieLayout,ingredientFlightPoint,worldToIngredientSource,
-  sauceBottleScale:1.48,useThree:selector=>selector({scene,invalidate}),sauceColors:{white:'#ffffff'},Food:'food',SauceBottle:'bottle',CHEESE_STRIP_SIZE:cheeseStripSize,
+  sauceBottleScale:1.48,useThree:selector=>selector({scene,invalidate,gl:{domElement:canvas}}),sauceColors:{white:'#ffffff'},Food:'food',SauceBottle:'bottle',CHEESE_STRIP_SIZE:cheeseStripSize,
   useFrame(callback){frame=callback},
   useRef(initial){const index=cursor++;slots[index]??={current:initial};return slots[index]},
   useMemo(factory,deps){
@@ -246,6 +251,8 @@ function componentHarness(name,parentMatrix=new Matrix4()){
  }
  return {
   timelines,parent,
+  pointerListeners,
+  pointer(type,x=0,y=0,pointerId=1,button=0){pointerListeners.get(type)?.({clientX:x,clientY:y,pointerId,button})},
   shelfBottle,
   render(props){cursor=0;effects=[];const tree=component(props);attach(tree,parent);effects.forEach(effect=>effect());return tree},
   frame(delta){frame?.({},delta)},
@@ -253,6 +260,36 @@ function componentHarness(name,parentMatrix=new Matrix4()){
   unmount(){slots.forEach(slot=>slot?.cleanup?.());parent.traverse(object=>{object.geometry?.dispose();object.material?.dispose()})},
  };
 }
+// Exercise the actual bread hit target without mounting a WebGL renderer.
+const breadUndo=componentHarness('BreadUndoTarget');
+let undos=0;
+let breadTarget=breadUndo.render({enabled:true,onUndo:()=>undos++,children:null});
+const tapBread=(delta=0)=>breadTarget.props.onClick({delta,stopPropagation(){}});
+breadUndo.pointer('pointerdown');breadUndo.pointer('pointerup',3,3);tapBread();
+assert.equal(undos,1,'Небольшое движение пальца должно считаться касанием');
+tapBread();assert.equal(undos,1,'Один жест должен отменять только одну начинку');
+breadUndo.pointer('pointerdown');breadUndo.pointer('pointermove',7,0);breadUndo.pointer('pointermove');breadUndo.pointer('pointerup');tapBread();
+assert.equal(undos,1,'Вращение с возвратом к исходной точке не должно отменять начинку');
+breadUndo.pointer('pointerdown');breadUndo.pointer('pointerdown',0,0,2);breadUndo.pointer('pointerup',0,0,2);breadUndo.pointer('pointerup');tapBread();
+assert.equal(undos,1,'Масштабирование двумя пальцами не должно отменять начинку');
+breadUndo.pointer('pointerdown');breadUndo.pointer('pointercancel');tapBread();
+assert.equal(undos,1,'Отменённое касание не должно менять заказ');
+breadUndo.pointer('pointerdown',0,0,1,2);breadUndo.pointer('pointerup',0,0,1,2);tapBread();
+assert.equal(undos,1,'Правая кнопка не должна отменять начинку');
+breadUndo.pointer('pointerdown');breadUndo.pointer('pointerup');tapBread(8);
+assert.equal(undos,1,'R3F drag delta должен предотвращать отмену');
+breadTarget=breadUndo.render({enabled:true,onUndo:()=>undos+=2,children:null});
+assert.equal(breadUndo.pointerListeners.size,4,'Смена callback не должна пересоздавать слушателей');
+breadUndo.pointer('pointerdown');breadUndo.pointer('pointerup');tapBread();
+assert.equal(undos,3,'Касание должно использовать актуальный callback');
+breadTarget=breadUndo.render({enabled:false,onUndo:()=>undos++,children:null});
+assert.equal(breadTarget.props.onClick,undefined,'При сборке/выдаче отмена недоступна');
+assert.equal(breadUndo.pointerListeners.size,0,'Отключение должно удалять слушателей');
+breadUndo.render({enabled:true,onUndo:()=>undos++,children:null});
+breadUndo.unmount();
+assert.equal(breadUndo.pointerListeners.size,0,'Unmount должен удалять слушателей');
+console.log('PASS bread undo: touch, drag-return, pinch, cancel, right-click, R3F delta, latest callback, disabled and cleanup.');
+
 const movingParent=new Matrix4().compose(new Vector3(3,.4,-1),new Quaternion().setFromEuler(new Euler(0,.6,0)),new Vector3(.9,1.2,.8));
 const falling=componentHarness('FallingPiece',movingParent);
 const batch={key:71,id:'chicken',layer:2,source:[...rotisserieLayout.cutPoint]};
