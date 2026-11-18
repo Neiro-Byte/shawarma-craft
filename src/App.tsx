@@ -140,8 +140,10 @@ export default function App(){
   if(next)unlockMusic();
   setMusicOn(next);
  }
- function unlockInteractionAudio(){
+ function unlockInteractionAudio(event:{target:EventTarget|null}){
   unlockAudio(!muted);
+  // The music button owns its gesture, so a first click on Off never starts a blip.
+  if(event.target instanceof Element&&event.target.closest('[data-music-toggle]'))return;
   unlockMusic();
  }
  const [cookStatus,setCookStatus]=useState('Заворачиваем…');
@@ -663,7 +665,7 @@ export default function App(){
    <header className="header">
     <a className="brand" href={import.meta.env.BASE_URL} aria-label="Shawarma Craft"><span className="brand-mark" aria-hidden="true">SC</span><span className="brand-title">{catalog.settings.title}</span></a>
     <div className="header-actions">
-     <button type="button" className="audio-toggle" onClick={toggleMusic} aria-pressed={musicEnabled} aria-label={musicEnabled?'Выключить фоновую музыку':'Включить фоновую музыку'} title={musicEnabled?'Выключить фоновую музыку':'Включить фоновую музыку'}>
+     <button type="button" className="audio-toggle" data-music-toggle onClick={toggleMusic} aria-pressed={musicEnabled} aria-label={musicEnabled?'Выключить фоновую музыку':'Включить фоновую музыку'} title={musicEnabled?'Выключить фоновую музыку':'Включить фоновую музыку'}>
       {musicEnabled?<Music2 size={18} aria-hidden="true"/>:<Music4 size={18} aria-hidden="true"/>}<span>Музыка</span><i aria-hidden="true"/>
      </button>
      <button type="button" className="audio-toggle" onClick={()=>{if(!muted)stopSounds();setMuted(value=>!value)}} aria-pressed={!muted} aria-label={muted?'Включить звуки ингредиентов и заказа':'Выключить звуки ингредиентов и заказа'} title={muted?'Включить звуки ингредиентов и заказа':'Выключить звуки ингредиентов и заказа'}>
