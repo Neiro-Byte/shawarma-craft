@@ -1,0 +1,29 @@
+{
+  "title": "Quiet Bazaar",
+  "version": 1,
+  "filename": "quiet-bazaar-v1.mp3",
+  "composition": "Original deterministic procedural composition created for SHAWARMA CRAFT",
+  "sources": "No external music recordings, samples, loops, vocals or melodies used",
+  "bpm": 72,
+  "bars": 16,
+  "meter": "4/4",
+  "key": "D minor with harmonic-minor melodic inflections",
+  "durationSeconds": 53.333333333333336,
+  "sampleRate": 32000,
+  "channels": 2,
+  "bitrate": 96000,
+  "normalization": "-22 LUFS target, -3 dBTP ceiling; limiter -3.35 dBFS",
+  "loop": "Cyclic note/reverb tails summed across 16-bar boundary; encoder adds gapless playback metadata",
+  "seed": 281118,
+  "bytes": 641132,
+  "sha256": "9daa1f66a573c253810026a9a2ade326f06ee94ac6641177f17715f4db63da8d",
+  "verification": "Numeric checks and FFmpeg measurements; subjective listening not verified",
+  "decodedVerification": {
+    "frames": 1706667,
+    "durationSeconds": 53.33334375,
+    "samplePeakDbFS": -6.62264494186085,
+    "loopBoundarySampleDelta": 0.003725612536072731
+  },
+  "measuredLoudnessLUFS": -22.8,
+  "measuredTruePeakDbFS": -6.6
+}
