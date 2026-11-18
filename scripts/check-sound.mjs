@@ -1,0 +1,159 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+
+// Exercise scheduling and lifecycle against the real module without an audio device.
+// A future stop(time) schedules completion, it does not disconnect a node immediately.
+const sources = [];
+const listeners = new Map();
+let timestamp = 1000;
+let contexts = 0;
+let buffers = 0;
+let resumes = 0;
+let currentContext;
+
+function parameter() {
+  return {
+    value: 0,
+    events: [],
+    setValueAtTime(value, at) { this.events.push(['set', value, at]); },
+    linearRampToValueAtTime(value, at) { this.events.push(['linear', value, at]); },
+    exponentialRampToValueAtTime(value, at) { this.events.push(['exponential', value, at]); },
+    setTargetAtTime(value, at, duration) { this.events.push(['target', value, at, duration]); },
+    cancelScheduledValues() {},
+  };
+}
+
+function node(type) {
+  const value = {
+    type,
+    connections: [],
+    disconnected: false,
+    gain: parameter(), frequency: parameter(), Q: parameter(),
+    threshold: parameter(), knee: parameter(), ratio: parameter(),
+    attack: parameter(), release: parameter(), playbackRate: parameter(),
+    connect(next) { this.connections.push(next); return next; },
+    disconnect() { this.disconnected = true; },
+  };
+  if (type === 'oscillator' || type === 'buffer') {
+    value.started = false;
+    value.ended = false;
+    value.start = function(at = 0, offset, duration) {
+      assert(Number.isFinite(at) && at >= 0);
+      if (duration !== undefined) assert(duration > 0 && Number.isFinite(duration));
+      this.started = true;
+      this.startAt = at;
+      this.offset = offset;
+      this.duration = duration;
+    };
+    value.stop = function(at) {
+      if (at !== undefined && at > currentContext.currentTime) {
+        this.stopAt = at;
+        return;
+      }
+      if (!this.ended) {
+        this.ended = true;
+        this.onended?.();
+      }
+    };
+    sources.push(value);
+  }
+  return value;
+}
+
+class MockAudioContext {
+  constructor() {
+    contexts++;
+    this.state = 'suspended';
+    this.sampleRate = 48000;
+    this.currentTime = 1;
+    this.destination = node('destination');
+    currentContext = this;
+  }
+  createGain() { return node('gain'); }
+  createBiquadFilter() { return node('filter'); }
+  createDynamicsCompressor() { return node('compressor'); }
+  createOscillator() { return node('oscillator'); }
+  createBufferSource() { return node('buffer'); }
+  createBuffer(channels, length, rate) {
+    buffers++;
+    assert.equal(channels, 1);
+    assert(length <= rate * 3, 'The shared noise buffer stays small');
+    return { getChannelData: () => new Float32Array(length) };
+  }
+  resume() { resumes++; this.state = 'running'; return Promise.resolve(); }
+}
+
+globalThis.document = {
+  hidden: false,
+  addEventListener(name, callback) { listeners.set(name, callback); },
+};
+globalThis.AudioContext = MockAudioContext;
+Object.defineProperty(globalThis, 'performance', { configurable: true, value: { now: () => timestamp } });
+
+const sourceText = readFileSync(new URL('../src/sound.ts', import.meta.url), 'utf8');
+const compiled = ts.transpileModule(sourceText, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
+}).outputText;
+const sounds = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
+const active = () => sources.filter(source => source.started && !source.ended);
+function play(kind) {
+  timestamp += 60;
+  sounds.sound(kind, true);
+}
+
+sounds.sound('cucumber', false);
+assert.equal(contexts, 0, 'Muted interaction must not allocate audio resources');
+document.hidden = true;
+sounds.sound('cucumber', true);
+assert.equal(contexts, 0, 'Hidden tabs must not allocate audio resources');
+document.hidden = false;
+sounds.unlockAudio(false);
+assert.equal(contexts, 0);
+sounds.unlockAudio(true);
+assert.equal(contexts, 1);
+assert(resumes > 0, 'Audio must unlock during the user gesture');
+assert.equal(active().length, 0, 'Unlocking must not produce sound');
+
+const domainText = readFileSync(new URL('../src/domain.ts', import.meta.url), 'utf8');
+const ids = domainText.match(/export type IngredientId = ([^;]+);/)[1].match(/'[^']+'/g).map(id => id.slice(1, -1));
+for (const kind of [...ids, 'cut', 'fold', 'grill', 'place', 'bread', 'ready', 'remove']) {
+  const before = sources.length;
+  play(kind);
+  const created = sources.slice(before);
+  assert(created.length > 0, `Missing sound for ${kind}`);
+  assert(created.every(source => source.started && Number.isFinite(source.stopAt)), `${kind} has a bounded lifetime`);
+  if (kind === 'grill') assert(Math.max(...created.map(source => source.stopAt)) - currentContext.currentTime <= 2.6);
+  sounds.stopSounds();
+  assert.equal(active().length, 0, `Stopping must cancel ${kind}`);
+  assert(created.every(source => source.disconnected), `Finished ${kind} nodes must disconnect`);
+}
+const soundProfiles = new Map();
+for (const kind of ['cucumber', 'tomato', 'onion', 'cabbage', 'fries']) {
+  const before = sources.length;
+  play(kind);
+  const profile = sources.slice(before).map(source => ({
+    frequency: source.frequency.events.map(event => event.slice(0, 2)),
+    filter: source.connections[0]?.frequency.events.map(event => event.slice(0, 2)),
+    duration: source.duration,
+    delay: source.startAt - currentContext.currentTime,
+  }));
+  soundProfiles.set(kind, JSON.stringify(profile));
+  sounds.stopSounds();
+}
+assert.equal(new Set(soundProfiles.values()).size, 5, 'Vegetables and fries must not share one generic scheduled texture');
+assert.equal(buffers, 1, 'Ingredient changes reuse the shared noise buffer');
+assert.equal(contexts, 1, 'Ingredient changes reuse one audio context');
+
+for (let index = 0; index < 60; index++) play(ids[index % ids.length]);
+assert(active().length <= 64, 'Rapid taps must retain a bounded number of audio sources');
+document.hidden = true;
+listeners.get('visibilitychange')();
+assert.equal(active().length, 0, 'Backgrounding must immediately cancel scheduled sounds');
+
+document.hidden = false;
+currentContext.state = 'closed';
+delete globalThis.AudioContext;
+assert.doesNotThrow(() => play('ready'), 'Unavailable browser audio must leave the constructor usable');
+
+console.log('PASS sound: all ingredients and cooking stages, gesture unlock, shared resources, bounded sources, mute and hidden-tab cleanup.');

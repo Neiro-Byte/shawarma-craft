@@ -1,8 +1,8 @@
-import {Component,Suspense,lazy,useEffect,useMemo,useRef,useState,type CSSProperties,type ReactNode} from 'react';
+import {Component,Suspense,lazy,useCallback,useEffect,useMemo,useRef,useState,type CSSProperties,type ReactNode} from 'react';
 import {RotateCcw,Volume2,VolumeX,ArrowUpRight,Check,Minus,Plus,X,Move,ArrowRight,Eye,Trash2,Flame,Search,BookOpen,Utensils,CupSoda,SlidersHorizontal,ArrowUp,ArrowDown,ListOrdered} from 'lucide-react';
 import {classicIds,menuSources,recipeToBatches,latestManualBatch,type Batch,type Phase} from './data';
 import {MAX_FILLINGS,type IngredientCategory,type IngredientId,type RecipePreset} from './domain';
-import {sound,stopSounds} from './sound';
+import {sound,stopSounds,unlockAudio} from './sound';
 import SavedRecipePanel from './SavedRecipePanel';
 import ExtrasMenu from './ExtrasMenu';
 import MobileOrder from './MobileOrder';
@@ -20,6 +20,7 @@ import type {ServingOrder} from './ServingTray';
 import {rotisserieLayout} from './sceneLayout';
 import {clearKitchenRequest,kitchenRequest,kitchenStatusLabel,kitchenWrite,readKitchenTicket,rememberKitchenTicket,reserveKitchenRequest,type KitchenTicket,type SharedMenu} from './kitchenClient';
 import './style.css';
+const staticDemo=import.meta.env.VITE_STATIC_DEMO==='true';
 const Kitchen=lazy(()=>import('./Scene'));
 const KitchenDashboard=lazy(()=>import('./KitchenDashboard'));
 const AdminPanel=lazy(()=>import('./AdminPanel'));
@@ -96,7 +97,7 @@ export default function App(){
  const [adminOpen,setAdminOpen]=useState(false);
  const [kitchenEnabled,setKitchenEnabled]=useState(false);
  const [kitchenChecked,setKitchenChecked]=useState(false);
- const [kitchenOpen,setKitchenOpen]=useState(()=>location.hash==='#kitchen');
+ const [kitchenOpen,setKitchenOpen]=useState(()=>!staticDemo&&location.hash==='#kitchen');
  const [menuSyncError,setMenuSyncError]=useState('');
  const [pricesOpen,setPricesOpen]=useState(false);
  const [infoOpen,setInfoOpen]=useState(false);
@@ -121,6 +122,8 @@ export default function App(){
  const [sceneSlow,setSceneSlow]=useState(false);
  const activeScene=useRef(scene);
  const [muted,setMuted]=useState(false),[inspect,setInspect]=useState(false),[grill,setGrill]=useState(savedDraft.draft?.grill??catalog.settings.grillDefault);
+ const soundMuted=useRef(muted);soundMuted.current=muted;
+ const playSceneSound=useCallback((kind:string)=>sound(kind,!soundMuted.current),[]);
  const [cookStatus,setCookStatus]=useState('Заворачиваем…');
  const [category,setCategory]=useState<IngredientCategory|'all'>('all'),[query,setQuery]=useState(''),[notice,setNotice]=useState('');
  const [quantities,setQuantities]=useState<ExtraQuantities>(savedDraft.draft?.extras??{});
@@ -155,6 +158,7 @@ export default function App(){
  const displayedPrice=order?.priced??(previewPrice.ok?previewPrice.order:undefined);
  const visibleIngredients=ingredients.filter(item=>item.available&&(category==='all'||item.category===category)&&normalize(item.name+' '+item.note).includes(normalize(query)));
  useEffect(()=>{
+  if(staticDemo){setKitchenChecked(true);return}
   const controller=new AbortController();
   async function loadSharedMenu(){
    try{
@@ -183,7 +187,7 @@ export default function App(){
   return()=>{controller.abort();window.removeEventListener('focus',loadSharedMenu)};
  },[]);
  useEffect(()=>{
-  const navigate=()=>setKitchenOpen(location.hash==='#kitchen');
+  const navigate=()=>setKitchenOpen(!staticDemo&&location.hash==='#kitchen');
   window.addEventListener('hashchange',navigate);
   return()=>window.removeEventListener('hashchange',navigate);
  },[]);
@@ -280,6 +284,7 @@ export default function App(){
   setOrder(value);
  }
  function updateScene(mode:SceneMode){
+  stopSounds();
   setAnimateRecipe(false);
   const next={mode,generation:activeScene.current.generation+1};
   activeScene.current=next;
@@ -308,7 +313,7 @@ export default function App(){
   resetScene();
   updateActiveDraft(draft=>({...draft,baseId:recipe?.id??null,batches:recipe?recipeToBatches(recipe):[]}),true);
   setAnimateRecipe(!!recipe);
-  sound('click',!muted);
+  sound('bread',!muted);
  }
  function restoreClassic(){beginRecipe(recipePresets[0])}
  function restart(){
@@ -349,7 +354,9 @@ export default function App(){
   const removing=batches.some(batch=>batch.id===id);
   if(!removing&&batches.length>=MAX_FILLINGS){setNotice(`В одном лаваше до ${MAX_FILLINGS} начинок. Убери один ингредиент, чтобы добавить другой.`);return;}
   setAnimateRecipe(false);
-  setNotice('');sound(removing?'remove':id,!muted);
+  setNotice('');
+  if(removing){stopSounds();sound('remove',!muted)}
+  else if(!show3D||!sceneRequested)sound(id,!muted);
   const nextKey=++seq.current;
   const ingredientSource=id==='chicken'?[...rotisserieLayout.cutPoint] as [number,number,number]:source;
   if(id==='chicken'&&!removing&&show3D&&sceneRequested)stageRef.current?.scrollIntoView({block:'start'});
@@ -513,10 +520,10 @@ export default function App(){
   }
   stageRef.current?.scrollIntoView({block:'start'});
   setSceneRequested(true);
+  stopSounds();
   updateOrder(pending);
   void submitKitchenOrder();
   if(withShawarma){
-   sound('fold',!muted);
    setCookStatus('Заворачиваем…');
   }else{
    sound('click',!muted);
@@ -630,10 +637,10 @@ export default function App(){
  if(adminOpen)return <Suspense fallback={<div className="app">Открываем редактор меню…</div>}>
   <AdminPanel catalog={catalog} onProductInfo={()=>{setAdminOpen(false);setInfoOpen(true)}} onPrices={()=>{setAdminOpen(false);setPricesOpen(true)}} onSave={applyCatalog} onClose={()=>{setAdminOpen(false);updateScene(activeScene.current.mode)}}/>
  </Suspense>;
- return <main className="app">
+ return <main className="app" onPointerDownCapture={()=>unlockAudio(!muted)} onKeyDownCapture={()=>unlockAudio(!muted)}>
   <div className="signboard">
    <header className="header">
-    <a className="brand" href="/" aria-label="Shawarma Craft"><span className="brand-mark" aria-hidden="true">SC</span><span className="brand-title">{catalog.settings.title}</span></a>
+    <a className="brand" href={import.meta.env.BASE_URL} aria-label="Shawarma Craft"><span className="brand-mark" aria-hidden="true">SC</span><span className="brand-title">{catalog.settings.title}</span></a>
     <div className="header-actions"><button type="button" className="icon-button" onClick={()=>{if(!muted)stopSounds();setMuted(value=>!value)}} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button><button type="button" className="icon-button" onClick={restart} aria-label="Начать заново"><RotateCcw size={19}/></button></div>
    </header>
    <section className="intro">
@@ -686,7 +693,7 @@ export default function App(){
     <div className="stage-top"><span className="live-label" role="status"><i/>{stageLabel}</span></div>
     {sceneRequested?<SceneBoundary key={scene.generation} onUnavailable={sceneFailed}>
      <Suspense fallback={<div className="fallback"><span>🌯</span><p>Разогреваем кухню…</p></div>}>
-      <Kitchen onUndoLastIngredient={lastManualIngredient&&!locked?undoLastIngredient:undefined} ingredientNames={ingredientNames} preparing={inPreparation} animateRecipe={animateRecipe} availableIngredientIds={availableIngredientIds} batches={recipeBatches?.[0]??batches} phase={phase} inspect={inspect} grill={order?.recipes?.grill??grill}
+      <Kitchen onSound={playSceneSound} onUndoLastIngredient={lastManualIngredient&&!locked?undoLastIngredient:undefined} ingredientNames={ingredientNames} preparing={inPreparation} animateRecipe={animateRecipe} availableIngredientIds={availableIngredientIds} batches={recipeBatches?.[0]??batches} phase={phase} inspect={inspect} grill={order?.recipes?.grill??grill}
        recipeBatches={recipeBatches}
        shawarmaQuantity={order?.usesScene?order.snapshot.shawarmaQuantity:undefined}
        servingOrder={servingOrder} onServed={onServed}
@@ -802,7 +809,7 @@ export default function App(){
    <ProductInfoSummary catalog={catalog} settings={productInfo} selection={{ingredients:drafts.flatMap(draft=>draft.batches.map(batch=>batch.id)),extras:extrasMenu.filter(item=>(quantities[item.id]??0)>0).map(item=>item.id)}}/>
   </details>}
   <details className="menu-sources"><summary><BookOpen size={15}/> О рецептах и составе</summary><p>Это творческая 3D-кухня, вдохновлённая московскими меню. Наши варианты можно менять; они не повторяют точные рецептуры заведений. Порции условные. Наличие продуктов и состав соусов в настоящем заказе нужно уточнять у заведения.</p><ul>{menuSources.map(source=><li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.name} ↗</a><span>{source.scope==='moscow'?'Москва':'Справочный рецепт'} · {source.note}</span></li>)}</ul><p>{kitchenEnabled?'Заказы передаются на экран кухни в локальной сети. Оплата не подключена.':'Демонстрационный конструктор. Заказы сохраняются в браузере.'}</p></details>
-  <footer className="footer"><span>{catalog.settings.title}</span><a className="admin-link" href="#kitchen">Экран кухни</a><button type="button" className="admin-link" disabled={inPreparation||recovering} onClick={openAdmin}>Управление меню</button></footer>
+  <footer className="footer"><span>{catalog.settings.title}</span>{!staticDemo&&<a className="admin-link" href="#kitchen">Экран кухни</a>}<button type="button" className="admin-link" disabled={inPreparation||recovering} onClick={openAdmin}>Управление меню</button></footer>
   <MobileOrder total={displayedPrice?formatMoney(displayedPrice.totalKopecks):undefined} shawarmas={panelShawarmas} extras={panelExtras} activeIndex={activeIndex}
    status={recovering?'recovery':inPreparation?'preparing':orderStatus==='served'?'ready':'editing'}
    liveKitchen={kitchenEnabled}

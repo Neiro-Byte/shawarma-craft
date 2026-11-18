@@ -60,8 +60,9 @@ type ShawarmaInteriorProps={
  chickenAvailable?:boolean;
  onChickenPick?:()=>void;
  active?:boolean;
+ onSound?:(kind:string)=>void;
 };
-export default function ShawarmaInterior({chickenCutKey,chickenAvailable=true,onChickenPick,active=true}:ShawarmaInteriorProps={}){
+export default function ShawarmaInterior({chickenCutKey,chickenAvailable=true,onChickenPick,active=true,onSound}:ShawarmaInteriorProps={}){
  const tiles=useMemo(tileTexture,[]);
  const wall=useMemo(tiledWall,[]);
  useEffect(()=>()=>{tiles.dispose();wall.dispose()},[tiles,wall]);
@@ -80,6 +81,6 @@ export default function ShawarmaInterior({chickenCutKey,chickenAvailable=true,on
    <boxGeometry args={[200,.15,200]}/>
    <meshStandardMaterial color="#878b80" roughness={.9}/>
   </mesh>
-  <Rotisserie cutKey={chickenCutKey} active={active} available={chickenAvailable} onPick={onChickenPick}/>
+  <Rotisserie onSound={onSound} cutKey={chickenCutKey} active={active} available={chickenAvailable} onPick={onChickenPick}/>
  </>;
 }

@@ -20,8 +20,9 @@ export type RotisserieProps={
  active:boolean;
  available:boolean;
  onPick?:()=>void;
+ onSound?:(kind:string)=>void;
 };
-export default function Rotisserie({cutKey,active,available,onPick}:RotisserieProps){
+export default function Rotisserie({cutKey,active,available,onPick,onSound}:RotisserieProps){
  const knifeGeometry=useMemo(()=>{
   const profile=new Shape();
   profile.moveTo(.07,.3);
@@ -60,6 +61,7 @@ export default function Rotisserie({cutKey,active,available,onPick}:RotisseriePr
   return geometry;
  },[]);
  useEffect(()=>()=>meatGeometry.dispose(),[meatGeometry]);
+ const playSound=useRef(onSound);playSound.current=onSound;
  const meat=useRef<Group>(null);
  const knife=useRef<Group>(null);
  const lastCut=useRef<number|undefined>(undefined);
@@ -94,6 +96,7 @@ export default function Rotisserie({cutKey,active,available,onPick}:RotisseriePr
   // The first downward pass reaches the pickup point around 0.55 seconds.
   for(let stroke=0;stroke<3;stroke++){
    const start=.15+stroke*.52;
+   timeline.call(()=>playSound.current?.('cut'),[],start);
    timeline.to(blade.position,{y:.9,duration:.4,ease:'sine.inOut'},start)
     .to(blade.rotation,{z:.04,duration:.4,ease:'sine.inOut'},start)
     .to(blade.position,{y:2.05,duration:.12,ease:'sine.out'},start+.4);

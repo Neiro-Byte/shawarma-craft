@@ -13,6 +13,7 @@ import PickupWindow from './PickupWindow';
 import ShawarmaInterior from './ShawarmaInterior';
 import {useCookPerformance} from './scenePerformance';
 import {isSauceId,type IngredientId} from './domain';
+type SceneSound=(kind:string)=>void;
 type IngredientPick=(id:IngredientId,origin?:[number,number,number])=>void;
 import {ingredients,latestManualBatch,type Batch,type Phase} from './data';
 import {roll,fillingTransform,endcap,grillLayout,batchRollLayout,centeredSlot,denseLayers,piecePose,ingredientPieceCount,cheesePose,saucePoint,endPosition,rotisserieLayout,trayLayout,sauceStation,servingLayout,servingCameraDistance} from './sceneLayout';
@@ -37,6 +38,7 @@ type WorldProps={
  inspect:boolean;
  grill:boolean;
  onStage:(text:string)=>void;
+ onSound?:SceneSound;
  onReady:()=>void;
  shawarmaQuantity?:number;
  onIngredientPick?:IngredientPick;
@@ -131,31 +133,72 @@ function BatchRoll({texture,colors}:{texture:THREE.Texture;colors:string[]}){
   </instancedMesh>}
  </group>;
 }
-function FallingPiece({batch,index,settle,onComplete}:{batch:Batch;index:number;settle:boolean;onComplete?:()=>void}){
+function FallingPiece({batch,index,settle,onComplete,onSound}:{batch:Batch;index:number;settle:boolean;onComplete?:()=>void;onSound?:SceneSound}){
  const complete=useRef(onComplete);complete.current=onComplete;
- const root=useRef<THREE.Group>(null!);const started=useRef(false);const target=useMemo(()=>piecePose(batch.layer,index),[batch.layer,index]);
- useEffect(()=>{const g=root.current;if(settle||batch.settled||started.current){g.position.set(target.x,target.y,target.z);g.rotation.set(0,target.ry,0);g.scale.setScalar(1);return;}started.current=true;
- if(batch.source){
-  g.parent?.updateWorldMatrix(true,false);
-  const source=worldToIngredientSource(batch.source,g.parent?.matrixWorld??new THREE.Matrix4()),flight={t:0};
-  const angle=index*2.399;source[0]+=Math.cos(angle)*.10;source[2]+=Math.sin(angle)*.10;
-  g.position.fromArray(source);g.scale.setScalar(1);g.rotation.set(0,index*.5,0);
-  const tl=gsap.timeline({delay:batch.id==='chicken'?rotisserieLayout.cutDelay+index*.07:index*.04,onComplete:()=>complete.current?.()});
-  tl.to(flight,{t:1,duration:.95,ease:'power1.inOut',onUpdate:()=>{g.position.fromArray(ingredientFlightPoint(source,[target.x,target.y,target.z],flight.t,.85))}},0)
-   .to(g.rotation,{x:0,y:target.ry,z:0,duration:.95},0);
-  return watchTimeline(tl);
- }
- const slow=batch.id==='lettuce'||batch.id==='beef'||batch.id==='onion';g.position.set(target.x+(slow?.7:0),3.8+index*.13,target.z);g.rotation.set(.8,index*2,slow?.7:.2);g.scale.setScalar(.75);const tl=gsap.timeline({delay:index*(batch.id==='cheese'?.025:.075),onComplete:()=>complete.current?.()});tl.to(g.position,{x:target.x,y:target.y,z:target.z,duration:slow?1.55:.75,ease:slow?'sine.out':'bounce.out'},0).to(g.rotation,{x:0,y:target.ry,z:0,duration:slow?1.7:.95,ease:'power2.out'},0).to(g.scale,{x:1,y:1,z:1,duration:.8,ease:'elastic.out(1,.5)'},.25);return watchTimeline(tl);},[batch.key,batch.id,batch.layer,batch.settled,batch.source,target,index,settle]);
- return <group ref={root}><Food kind={batch.id} variant={index}/></group>
+ const playSound=useRef(onSound);playSound.current=onSound;
+ const root=useRef<THREE.Group>(null!);
+ const started=useRef(false);
+ const target=useMemo(()=>piecePose(batch.layer,index),[batch.layer,index]);
+ useEffect(()=>{
+  const piece=root.current;
+  if(settle||batch.settled||started.current){
+   piece.position.set(target.x,target.y,target.z);
+   piece.rotation.set(0,target.ry,0);
+   piece.scale.setScalar(1);
+   return;
+  }
+  started.current=true;
+  const landed=()=>{if(index===0)playSound.current?.(batch.id)};
+  if(batch.source){
+   piece.parent?.updateWorldMatrix(true,false);
+   const source=worldToIngredientSource(batch.source,piece.parent?.matrixWorld??new THREE.Matrix4());
+   const flight={t:0};
+   const angle=index*2.399;
+   source[0]+=Math.cos(angle)*.10;
+   source[2]+=Math.sin(angle)*.10;
+   piece.position.fromArray(source);
+   piece.scale.setScalar(1);
+   piece.rotation.set(0,index*.5,0);
+   const timeline=gsap.timeline({
+    delay:batch.id==='chicken'?rotisserieLayout.cutDelay+index*.07:index*.04,
+    onComplete:()=>complete.current?.(),
+   });
+   timeline.to(flight,{
+    t:1,duration:.95,ease:'power1.inOut',
+    onUpdate:()=>piece.position.fromArray(ingredientFlightPoint(source,[target.x,target.y,target.z],flight.t,.85)),
+   },0)
+    .to(piece.rotation,{x:0,y:target.ry,z:0,duration:.95},0)
+    .call(landed,[],.95);
+   return watchTimeline(timeline);
+  }
+  const slow=batch.id==='lettuce'||batch.id==='beef'||batch.id==='onion';
+  piece.position.set(target.x+(slow?.7:0),3.8+index*.13,target.z);
+  piece.rotation.set(.8,index*2,slow?.7:.2);
+  piece.scale.setScalar(.75);
+  const timeline=gsap.timeline({
+   delay:index*(batch.id==='cheese'?.025:.075),
+   onComplete:()=>complete.current?.(),
+  });
+  timeline.to(piece.position,{
+   x:target.x,y:target.y,z:target.z,duration:slow?1.55:.75,ease:slow?'sine.out':'bounce.out',
+  },0)
+   .to(piece.rotation,{x:0,y:target.ry,z:0,duration:slow?1.7:.95,ease:'power2.out'},0)
+   .to(piece.scale,{x:1,y:1,z:1,duration:.8,ease:'elastic.out(1,.5)'},.25)
+   .call(landed,[],slow?1.55:.75);
+  return watchTimeline(timeline);
+ },[batch.key,batch.id,batch.layer,batch.settled,batch.source,target,index,settle]);
+ return <group ref={root}><Food kind={batch.id} variant={index}/></group>;
 }
-function CheeseRain({batch,settle,onComplete}:{batch:Batch;settle:boolean;onComplete?:()=>void}){
+function CheeseRain({batch,settle,onComplete,onSound}:{batch:Batch;settle:boolean;onComplete?:()=>void;onSound?:SceneSound}){
  const complete=useRef(onComplete);complete.current=onComplete;
+ const playSound=useRef(onSound);playSound.current=onSound;
  const completed=useRef(false);
+ const sounded=useRef(false);
  const ref=useRef<THREE.InstancedMesh>(null!);const elapsedTime=useRef(0);const last=useRef(-1);
  const dummy=useMemo(()=>new THREE.Object3D(),[]);const bounce=useMemo(()=>gsap.parseEase('bounce.out'),[]);
  const source=useRef<[number,number,number]|null>(null);
  useLayoutEffect(()=>{
-  elapsedTime.current=0;last.current=-1;completed.current=false;
+  elapsedTime.current=0;last.current=-1;completed.current=false;sounded.current=false;
   if(batch.source){ref.current.parent?.updateWorldMatrix(true,false);source.current=worldToIngredientSource(batch.source,ref.current.parent?.matrixWorld??new THREE.Matrix4())}
   else source.current=null;
  },[batch.key]);
@@ -163,6 +206,7 @@ function CheeseRain({batch,settle,onComplete}:{batch:Batch;settle:boolean;onComp
  useFrame((_,delta)=>{
   if(last.current===Infinity)return;
   elapsedTime.current+=Math.min(delta,.05);const elapsed=elapsedTime.current;
+  if(!settle&&!batch.settled&&!sounded.current&&elapsed>=.9){sounded.current=true;playSound.current?.(batch.id)}
   const finished=settle||batch.settled||elapsed>=64*.012+.9;
   last.current=finished?Infinity:elapsed;
   for(let i=0;i<65;i++){
@@ -179,8 +223,9 @@ function CheeseRain({batch,settle,onComplete}:{batch:Batch;settle:boolean;onComp
  });
  return <instancedMesh ref={ref} args={[undefined,undefined,65]} castShadow><boxGeometry args={CHEESE_STRIP_SIZE}/><meshStandardMaterial color="#f4cb54" roughness={.7}/></instancedMesh>
 }
-function Sauce({batch,settle,onComplete,liftSauce}:{batch:Batch;settle:boolean;onComplete?:()=>void;liftSauce?:LiftSauce}){
+function Sauce({batch,settle,onComplete,liftSauce,onSound}:{batch:Batch;settle:boolean;onComplete?:()=>void;liftSauce?:LiftSauce;onSound?:SceneSound}){
  const complete=useRef(onComplete);complete.current=onComplete;
+ const playSound=useRef(onSound);playSound.current=onSound;
  const scene=useThree(state=>state.scene);
  const invalidate=useThree(state=>state.invalidate);
  const started=useRef(false);const bottle=useRef<THREE.Group>(null!);const material=useRef<THREE.MeshStandardMaterial>(null!);const stream=useRef<THREE.Mesh>(null!);
@@ -220,6 +265,7 @@ function Sauce({batch,settle,onComplete,liftSauce}:{batch:Batch;settle:boolean;o
   tl.to(flight,{t:1,duration:.45,ease:'sine.inOut',onUpdate:()=>container.position.fromArray(ingredientFlightPoint(source,[first[0],height,first[2]],flight.t,.45))},0)
    .to(container.rotation,{z:Math.PI,duration:.34,ease:'sine.inOut'},.1)
    .set(stream.current,{visible:true},.45)
+   .call(()=>playSound.current?.(batch.id),[],.45)
    .to(pour,{t:1,duration:1.5,ease:'none',onUpdate:()=>{
     geo.setDrawRange(0,Math.floor(pour.t*120)*36);
     const point=saucePoint(batch.layer,pour.t);container.position.set(point[0],height,point[2]);
@@ -311,8 +357,8 @@ function IngredientTrays({active,onIngredientPick,availableIngredientIds,station
   {sauces.map((id,i)=><IngredientTray key={id} id={id} x={centeredSlot(i,sauces.length,1.1)} z={sauceStation.z} lifted={liftedSauces.has(id)} active={active&&!!onIngredientPick&&!liftedSauces.has(id)} onIngredientPick={onIngredientPick}/>)}
  </group>;
 }
-function KitchenProps({active,onIngredientPick,availableIngredientIds,stationView,chickenCutKey,liftedSauces}:{active:boolean;onIngredientPick?:IngredientPick;availableIngredientIds?:readonly IngredientId[];stationView?:StationView;chickenCutKey?:number;liftedSauces:ReadonlyMap<IngredientId,number>}){return <group>
- <ShawarmaInterior active={active} chickenCutKey={chickenCutKey} chickenAvailable={availableIngredientIds===undefined||availableIngredientIds.includes('chicken')} onChickenPick={()=>onIngredientPick?.('chicken',[...rotisserieLayout.cutPoint])}/>
+function KitchenProps({active,onIngredientPick,availableIngredientIds,stationView,chickenCutKey,liftedSauces,onSound}:{active:boolean;onIngredientPick?:IngredientPick;availableIngredientIds?:readonly IngredientId[];stationView?:StationView;chickenCutKey?:number;liftedSauces:ReadonlyMap<IngredientId,number>;onSound?:SceneSound}){return <group>
+ <ShawarmaInterior onSound={onSound} active={active} chickenCutKey={chickenCutKey} chickenAvailable={availableIngredientIds===undefined||availableIngredientIds.includes('chicken')} onChickenPick={()=>onIngredientPick?.('chicken',[...rotisserieLayout.cutPoint])}/>
  <mesh position={[0,-.106,0]}>
   <boxGeometry args={[5.4,.098,4.03]}/><meshStandardMaterial color="#76532f"/>
  </mesh>
@@ -338,8 +384,8 @@ function ContactGrill({root,lid,heating,enabled}:{enabled:boolean;root:React.Ref
  </group>
 }
 function Steam(){const ref=useRef<THREE.InstancedMesh>(null!);const dummy=useMemo(()=>new THREE.Object3D(),[]);useFrame(({clock})=>{for(let i=0;i<9;i++){const q=(clock.elapsedTime*.45+i/9)%1;dummy.position.set(Math.sin(i*2.4)*.8+Math.sin(q*5+i)*.1,1.6+q*1.4,Math.cos(i*2.4)*1.1);dummy.scale.setScalar(Math.sin(q*Math.PI)*.13);dummy.updateMatrix();ref.current.setMatrixAt(i,dummy.matrix)}ref.current.instanceMatrix.needsUpdate=true});return <instancedMesh ref={ref} args={[undefined,undefined,9]}><sphereGeometry args={[1,8,6]}/><meshBasicMaterial color="#fff6df" transparent opacity={.22} depthWrite={false}/></instancedMesh>}
-function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,onStage,onReady,shawarmaQuantity=1,onIngredientPick,availableIngredientIds,stationView,servingOrder,onServed,compact,shadowSize,reduceQuality,onCutActiveChange,liftSauce,liftedSauces,onLatestIngredient}:WorldProps&{compact:boolean;shadowSize:number;reduceQuality:()=>void;onCutActiveChange?:(active:boolean)=>void;liftSauce:LiftSauce;liftedSauces:ReadonlyMap<IngredientId,number>;onLatestIngredient:(id:IngredientId|undefined)=>void}){
- const dish=useRef<THREE.Group>(null!),filling=useRef<THREE.Group>(null!),grillRoot=useRef<THREE.Group>(null!),lid=useRef<THREE.Group>(null!);const [wrapped,setWrapped]=useState(false),[heating,setHeating]=useState(false),[toasted,setToasted]=useState(false);const callbacks=useRef({onStage,onReady,onServed});callbacks.current={onStage,onReady,onServed};const p=useRef({value:0});
+function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,onStage,onReady,onSound,shawarmaQuantity=1,onIngredientPick,availableIngredientIds,stationView,servingOrder,onServed,compact,shadowSize,reduceQuality,onCutActiveChange,liftSauce,liftedSauces,onLatestIngredient}:WorldProps&{compact:boolean;shadowSize:number;reduceQuality:()=>void;onCutActiveChange?:(active:boolean)=>void;liftSauce:LiftSauce;liftedSauces:ReadonlyMap<IngredientId,number>;onLatestIngredient:(id:IngredientId|undefined)=>void}){
+ const dish=useRef<THREE.Group>(null!),filling=useRef<THREE.Group>(null!),grillRoot=useRef<THREE.Group>(null!),lid=useRef<THREE.Group>(null!);const [wrapped,setWrapped]=useState(false),[heating,setHeating]=useState(false),[toasted,setToasted]=useState(false);const callbacks=useRef({onStage,onReady,onServed,onSound});callbacks.current={onStage,onReady,onServed,onSound};const p=useRef({value:0});
  const camera=useThree(state=>state.camera),invalidate=useThree(state=>state.invalidate),size=useThree(state=>state.size);
  const controls=useRef<React.ComponentRef<typeof OrbitControls>>(null);
  const tray=useRef<THREE.Group>(null!);
@@ -455,6 +501,8 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
     const anotherRoll=i+1<shawarmaQuantity;
     const parked=cargo.children[i];
     const slot=batchRollLayout.stagingX+centeredSlot(i,shawarmaQuantity,batchRollLayout.spacing);
+    tl.call(()=>callbacks.current.onSound?.('fold'),[],fold+.22);
+    tl.call(()=>callbacks.current.onSound?.('place'),[],fold+2.83);
     tl.call(()=>{setWrapped(false);activeRoll.visible=true;callbacks.current.onStage(`Заворачиваем шаурму ${i+1} из ${shawarmaQuantity}…`)},[],start)
      .set(p.current,{value:0},start)
      .set(activeRoll.position,{x:0,y:0,z:0},start)
@@ -478,6 +526,8 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
    }
   }else{
    // Retain the original fold and bounce for a single roll.
+   tl.call(()=>callbacks.current.onSound?.('fold'),[],.5);
+   tl.call(()=>callbacks.current.onSound?.('place'),[],3.8);
    tl.to(fillingGroup.scale,{x:.8,z:.9,duration:.6,ease:'power2.inOut'},0)
     .to(p.current,{value:1,duration:2.5,ease:'power2.inOut'},.5)
     .to(fillingGroup.scale,{x:fillingTransform.x,y:fillingTransform.y,z:fillingTransform.z,duration:1.8,ease:'power2.inOut'},.6)
@@ -508,7 +558,7 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
     .to(cargo.position,{y:liftedY,duration:.4,ease:'power2.out'},start+.4)
     .to(cargo.position,{x:grillLayout.x,z:grillLayout.z,duration:.8,ease:'power2.inOut'},start+.75)
     .to(cargo.position,{y:grillY,duration:.4,ease:'power2.in'},start+1.45)
-    .call(()=>callbacks.current.onStage('Поджариваем на гриле…'),[],start+1.8)
+    .call(()=>{callbacks.current.onStage('Поджариваем на гриле…');callbacks.current.onSound?.('grill')},[],start+1.8)
     .to(lid.current.rotation,{x:0,duration:.65,ease:'power2.inOut'},start+1.8)
     .call(()=>setHeating(true),[],start+2.3)
     .call(()=>{setHeating(false);setToasted(true);callbacks.current.onStage('Хрустящая корочка готова!')},[],start+4.3)
@@ -585,7 +635,7 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
   return()=>{stop();if(!finished){camera.position.copy(homeCamera);target.copy(homeTarget);camera.lookAt(target);invalidate()}setCutFocus(false);onCutActiveChange?.(false)};
  },[chickenCutKey,camera,invalidate,onCutActiveChange]);
  return <><color attach="background" args={['#c8c1b6']}/><fog attach="fog" args={['#c8c1b6',16,45]}/><ambientLight intensity={.76}/><hemisphereLight args={['#fff1da','#817e72',.72]}/><directionalLight key={shadowSize} position={[-3,8,5]} intensity={2.28} color="#fff7e9" castShadow shadow-mapSize={[shadowSize,shadowSize]} shadow-camera-left={-7} shadow-camera-right={7} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-bias={-.0005}/><directionalLight position={[5,4,-3]} intensity={1.12} color="#ffe7bb"/>
- <KitchenProps active={phase==='build'&&!hasServingOrder} onIngredientPick={onIngredientPick} availableIngredientIds={availableIngredientIds} stationView={stationView} chickenCutKey={chickenCutKey} liftedSauces={liftedSauces}/>
+ <KitchenProps active={phase==='build'&&!hasServingOrder} onIngredientPick={onIngredientPick} availableIngredientIds={availableIngredientIds} stationView={stationView} chickenCutKey={chickenCutKey} liftedSauces={liftedSauces} onSound={onSound}/>
  <ContactGrill root={grillRoot} lid={lid} heating={heating} enabled={grill}/>
  <ServingShelf/>
  <PickupWindow/>
@@ -614,8 +664,8 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
     <Bread progress={p} texture={texture}/>
     <group ref={filling} visible={!wrapped}>
      {visibleLayers.map(b=><group key={activeRecipeIndex+':'+b.key}>
-      {isSauceId(b.id)?<Sauce batch={b} settle={settleFilling} liftSauce={liftSauce} onComplete={assemblingRecipe?()=>advanceRecipe(b.key):undefined}/>:b.id==='cheese'?<CheeseRain batch={b} settle={settleFilling} onComplete={assemblingRecipe?()=>advanceRecipe(b.key):undefined}/>:
-       Array.from({length:ingredientPieceCount(b.id)},(_,i)=><FallingPiece key={i} batch={b} index={i} settle={settleFilling} onComplete={assemblingRecipe&&i===ingredientPieceCount(b.id)-1?()=>advanceRecipe(b.key):undefined}/>)}
+      {isSauceId(b.id)?<Sauce onSound={onSound} batch={b} settle={settleFilling} liftSauce={liftSauce} onComplete={assemblingRecipe?()=>advanceRecipe(b.key):undefined}/>:b.id==='cheese'?<CheeseRain onSound={onSound} batch={b} settle={settleFilling} onComplete={assemblingRecipe?()=>advanceRecipe(b.key):undefined}/>:
+       Array.from({length:ingredientPieceCount(b.id)},(_,i)=><FallingPiece key={i} onSound={onSound} batch={b} index={i} settle={settleFilling} onComplete={assemblingRecipe&&i===ingredientPieceCount(b.id)-1?()=>advanceRecipe(b.key):undefined}/>)}
      </group>)}
     </group>
     {wrapped&&<>

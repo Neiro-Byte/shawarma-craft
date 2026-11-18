@@ -345,6 +345,44 @@ near(catalogSauce.props.children[1].props.ref.current.position,sauceBatch.source
 assert.deepEqual([...heldSauces],[72]);
 cancelledSauce.unmount();
 assert.equal(heldSauces.size,0,'Отмена анимации возвращает бутылку на полку');
+// Timing is part of the user-visible sound story, including cancellation.
+const timedSauce=componentHarness('Sauce');
+const sauceSounds=[];
+timedSauce.render({batch:{...sauceBatch,key:810},settle:false,onSound:id=>sauceSounds.push(id)});
+assert.equal(sauceSounds.length,0);
+timedSauce.timelines[0].time(.44,false);
+assert.equal(sauceSounds.length,0,'Pour sound starts only after arrival');
+timedSauce.timelines[0].time(.46,false);
+assert.deepEqual(sauceSounds,['white']);
+timedSauce.render({batch:{...sauceBatch,key:810},settle:false,onSound:id=>sauceSounds.push(id)});
+timedSauce.timelines[0].progress(1,false);
+assert.equal(sauceSounds.length,1,'A render must not replay the pour sound');
+timedSauce.unmount();
+const cancelledPour=componentHarness('Sauce');
+cancelledPour.render({batch:{...sauceBatch,key:811},settle:false,onSound:id=>sauceSounds.push(id)});
+cancelledPour.timelines[0].time(.2,false);
+cancelledPour.unmount();
+assert.equal(sauceSounds.length,1,'Cancelled pour emits no delayed sound');
+
+for(const index of [0,1]){
+ const landing=componentHarness('FallingPiece');
+ const hits=[];
+ landing.render({batch:{...batch,key:820+index},index,settle:false,onSound:id=>hits.push(id)});
+ landing.timelines[0].time(.94,false);
+ assert.equal(hits.length,0);
+ landing.timelines[0].time(.96,false);
+ assert.equal(hits.length,index===0?1:0,'Only one sound per meat portion');
+ landing.unmount();
+}
+const cheeseSound=componentHarness('CheeseRain');
+const shreds=[];
+cheeseSound.render({batch:{key:830,id:'cheese',layer:0},settle:false,onSound:id=>shreds.push(id)});
+for(let frame=0;frame<17;frame++)cheeseSound.frame(.05);
+assert.equal(shreds.length,0);
+for(let frame=0;frame<35;frame++)cheeseSound.frame(.05);
+assert.deepEqual(shreds,['cheese']);
+cheeseSound.unmount();
+console.log('PASS sound timing: pour arrival, cancellation, single meat landing and first cheese landing.');
 const cheese=componentHarness('CheeseRain',movingParent);
 const cheeseBatch={key:73,id:'cheese',layer:4,source:[-1,.055,-3.25]};
 const cheeseTree=cheese.render({batch:cheeseBatch,settle:false});
