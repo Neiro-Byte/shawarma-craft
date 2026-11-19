@@ -231,6 +231,11 @@ export function sound(kind:string,enabled:boolean){
    tone(ctx,at,105,.12,.075);
    rustle(ctx,at,.17,700,.08);
    rustle(ctx,at+.045,.23,1800,.045);
+  }else if(kind==='remove'){
+   // The first undo can happen before the recording finishes loading.
+   // Keep its immediate fallback a granular transfer rather than a musical beep.
+   rustle(ctx,at,.58,1450,.2,.65);
+   for(let i=0;i<7;i++)rustle(ctx,at+.04+i*.065,.045,2300+(i%3)*430,.06,1.1);
   }else if(kind==='bread'){
    rustle(ctx,at,.25,1450,.09);
    tone(ctx,at+.16,115,.085,.05);

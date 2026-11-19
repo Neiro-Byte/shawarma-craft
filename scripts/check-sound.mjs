@@ -141,6 +141,7 @@ for (const kind of [...ids, 'cut', 'fold', 'grill', 'place', 'bread', 'ready', '
   const created = sources.slice(before);
   assert(created.length > 0, `Missing sound for ${kind}`);
   assert(created.every(source => source.started && Number.isFinite(source.stopAt)), `${kind} has a bounded lifetime`);
+  if (kind === 'remove') assert(created.every(source => source.type === 'buffer'), 'Undo fallback must be a pouring texture without a musical beep');
   if (kind === 'grill') assert(Math.max(...created.map(source => source.stopAt)) - currentContext.currentTime <= 2.6);
   sounds.stopSounds();
   assert.equal(active().length, 0, `Stopping must cancel ${kind}`);

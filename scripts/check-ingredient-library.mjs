@@ -14,7 +14,7 @@ const {defaultCatalog,validateCatalogSettings,saveCatalog,loadCatalog}=await imp
 const {defaultPricing,calculateOrderPrice}=await import(compile('pricing'));
 const {registerIngredientVisuals,visualIngredientId,isSauceId}=await import(compile('domain'));
 const {stationPage,stationFoodIds,stationSauceIds}=await import(compile('pantryStations'));
-const {ingredientPieceCount}=await import(compile('sceneLayout'));
+const {ingredientPieceCount,centeredSlot}=await import(compile('sceneLayout'));
 const {parseOrderDraft}=await import(compile('orderDraft'));
 const {validateSavedRecipe}=await import(compile('savedRecipe'));
 const {createProductInfo,summarizeProductInfo,validateProductInfo}=await import(compile('productInfo'));
@@ -46,6 +46,18 @@ assert(pageItems(stationFoodIds).includes('custom-avocado'),'Custom ingredients 
 assert(pageItems(stationSauceIds).includes('custom-hummus'),'Custom sauces get selectable physical bottles');
 assert(!pageItems(stationFoodIds).includes('custom-hummus'));
 assert(!pageItems(stationSauceIds).includes('custom-avocado'));
+// The bottle flight passes an already-expanded shelf list. It must not append the
+// same custom sauce a second time, or the last bottle flies from the wrong X.
+const expandedSauces=[...stationSauceIds,'custom-hummus'];
+const sauceAvailability=[...stationSauceIds.slice(0,6),'custom-hummus'];
+const canonicalLastPage=stationPage(stationSauceIds,sauceAvailability,2,3);
+const expandedLastPage=stationPage(expandedSauces,sauceAvailability,2,3);
+assert.deepEqual(expandedLastPage,canonicalLastPage,'Canonical and pre-expanded shelf lists must produce the same final page');
+assert.deepEqual(expandedLastPage.ids,['custom-hummus']);
+assert.equal(expandedLastPage.total,7);
+assert.equal(new Set(expandedLastPage.ids).size,expandedLastPage.ids.length);
+assert.equal(centeredSlot(expandedLastPage.ids.indexOf('custom-hummus'),expandedLastPage.ids.length,1.1),0,'A single final-page sauce bottle must launch from the shelf center');
+
 const input={shawarmas:[{title:'Своя',ingredientIds:['chicken','custom-avocado']}],extras:[]};
 let price=calculateOrderPrice(input,defaultPricing,result.catalog);
 assert(price.ok);assert.equal(price.order.totalKopecks,28000);
