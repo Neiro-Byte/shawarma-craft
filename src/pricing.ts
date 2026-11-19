@@ -1,5 +1,5 @@
 import { classicIds, ingredients } from './data';
-import { MAX_FILLINGS, type IngredientId } from './domain';
+import { MAX_FILLINGS,isCustomIngredientId,type CoreIngredientId, type IngredientId } from './domain';
 import { extrasMenu, type ExtraId } from './extraMenuCatalog';
 import type { CatalogSettings } from './catalogSettings';
 
@@ -8,7 +8,7 @@ export const DEMO_PRICE_NOTICE = 'Демо-цены для примера. Ст�
 export type PricingSettings = {
   version: 1;
   basePriceKopecks: number;
-  ingredientSurcharges: Record<IngredientId, number>;
+  ingredientSurcharges: Record<CoreIngredientId, number>;
   extraPrices: Record<ExtraId, number>;
 };
 export type PricingResult = { ok: true; pricing: PricingSettings } | { ok: false; error: string };
@@ -41,7 +41,7 @@ export const defaultPricing: PricingSettings = {
   basePriceKopecks: 25000,
   ingredientSurcharges: Object.fromEntries(ingredientIds.map(id => [
     id, baseline.has(id) ? 0 : id === 'beef' || id === 'falafel' ? 6000 : 3000,
-  ])) as Record<IngredientId, number>,
+  ])) as Record<CoreIngredientId, number>,
   extraPrices: { water: 7000, ayran: 10000, cranberry: 11000, blackcurrant: 11000,
     fries: 13000, bites: 18000, cheeseBalls: 16000, wings: 22000 },
 };
@@ -63,7 +63,7 @@ export function validatePricingSettings(value: unknown): PricingResult {
   if (!validPrices(value.ingredientSurcharges, ingredientIds) || !validPrices(value.extraPrices, extraIds)) {
     return { ok: false, error: 'Проверьте цены всех известных ингредиентов, напитков и закусок.' };
   }
-  const surcharges = value.ingredientSurcharges as Record<IngredientId, number>;
+  const surcharges = value.ingredientSurcharges as Record<CoreIngredientId, number>;
   if (classicIds.some(id => surcharges[id] !== 0)) {
     return { ok: false, error: 'Ингредиенты классического состава уже входят в базовую цену.' };
   }
@@ -135,10 +135,12 @@ export function calculateOrderPrice(input: PriceOrderInput, pricing: PricingSett
     const surcharges: PricedShawarma['surcharges'] = [];
     for (const id of ids as readonly IngredientId[]) {
       const item = catalog.ingredients.find(item => item.id === id);
-      if (!item || !ingredientIds.includes(id)) return { ok: false, error: 'В составе найден неизвестный ингредиент.' };
+      if (!item || (!ingredientIds.includes(id)&&!isCustomIngredientId(id))) return { ok: false, error: 'В составе найден неизвестный ингредиент.' };
       composition.push({ id, name: item.name });
-      if (!baseline.has(id) && settings.ingredientSurcharges[id] > 0) {
-        surcharges.push({ id, name: item.name, priceKopecks: settings.ingredientSurcharges[id] });
+      const surcharge=isCustomIngredientId(id)?item.surchargeKopecks:settings.ingredientSurcharges[id as CoreIngredientId];
+      if(!money(surcharge))return {ok:false,error:'У ингредиента не задана корректная цена.'};
+      if (!baseline.has(id) && surcharge > 0) {
+        surcharges.push({ id, name: item.name, priceKopecks: surcharge });
       }
     }
     const totalKopecks = surcharges.reduce((sum, item) => sum + item.priceKopecks, settings.basePriceKopecks);

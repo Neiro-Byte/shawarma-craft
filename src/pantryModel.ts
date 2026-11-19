@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import type {IngredientId} from './domain';
+import {visualIngredientId,type IngredientId} from './domain';
 export type FoodPart={geometry:THREE.BufferGeometry;material:THREE.Material|THREE.Material[];matrices:THREE.Matrix4[];colors:THREE.Color[]|null};
-export function pantryPiecePoses(id:IngredientId){
+export function pantryPiecePoses(input:IngredientId){
+ const id=visualIngredientId(input);
  if(id==='falafel')return [[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]].map(([x,z])=>({position:[x,.035,z] as [number,number,number],rotation:0,scale:1}));
  const count=id==='corn'?44:id==='beans'?30:id==='cheese'?14:id==='carrot'||id==='cabbage'?12:id==='beef'?12:id==='chicken'?9:7;
  return Array.from({length:count},(_,i)=>{

@@ -6,7 +6,7 @@ function compile(name){
  if(modules.has(name))return modules.get(name);
  const source=readFileSync(new URL(`../src/${name}.ts`,import.meta.url),'utf8');
  const {outputText}=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}});
- const code=outputText.replace(/from ['"]\.\/(data|domain|extraMenuCatalog)['"]/g,(_,dependency)=>`from '${compile(dependency)}'`);
+ const code=outputText.replace(/from ['"]\.\/(data|domain|extraMenuCatalog|ingredientLibrary)['"]/g,(_,dependency)=>`from '${compile(dependency)}'`);
  const url='data:text/javascript;base64,'+Buffer.from(code).toString('base64');modules.set(name,url);return url;
 }
 const {defaultCatalog,validateCatalogSettings,saveCatalog,loadCatalog,CATALOG_KEY}=await import(compile('catalogSettings'));

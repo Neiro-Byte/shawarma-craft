@@ -29,7 +29,7 @@
 }
 .sc-admin button:hover:not(:disabled) { background: #ffedc8; }
 .sc-admin button:disabled { opacity: .5; cursor: default; }
-.sc-admin :is(button, input, textarea):focus-visible { outline: 3px solid #82450f; outline-offset: 3px; }
+.sc-admin :is(button, input, textarea, select):focus-visible { outline: 3px solid #82450f; outline-offset: 3px; }
 .sc-admin-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 16px; }
 .sc-admin-tabs [aria-selected="true"] { background: #242421; border-color: #242421; color: #fffaf0; }
 .sc-admin-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }

@@ -1,4 +1,4 @@
-import type { IngredientId, Item, MenuSource, RecipePreset } from './domain';
+import type { IngredientId, CoreIngredientId, Item, MenuSource, RecipePreset } from './domain';
 export type { Item } from './domain';
 
 export const ingredients: Item[] = [
@@ -31,7 +31,7 @@ export const ingredients: Item[] = [
 export type Phase = 'build'|'folding'|'ready';
 export type Batch = {id:IngredientId;key:number;layer:number;settled?:boolean;source?:[number,number,number]};
 export const classicSource = 'https://menunedeli.ru/recipe/shaurma-recept-klassicheskij/';
-export const classicIds: IngredientId[] = ['lettuce','chicken','tomato','cucumber','white'];
+export const classicIds: CoreIngredientId[] = ['lettuce','chicken','tomato','cucumber','white'];
 
 export const menuSources: MenuSource[] = [
   {id:'home-classic',name:'Меню недели — домашний рецепт',url:classicSource,verifiedOn:'2026-11-15',scope:'reference',note:'Домашний ориентир исходного набора; не московское заведение и не стандарт классики.'},

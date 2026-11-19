@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { PricedOrder } from './pricing';
+import { paymentMethodLabel, type PaymentMethod } from './payment';
 import './KitchenDashboard.css';
 
 type KitchenStatus = 'accepted' | 'preparing' | 'ready';
@@ -10,6 +11,7 @@ type KitchenOrder = {
   createdAt: string | number;
   order: PricedOrder;
   grill: boolean;
+  paymentMethod?: PaymentMethod;
 };
 
 const labels: Record<KitchenStatus, string> = {
@@ -50,6 +52,7 @@ function KitchenCard({ ticket, busy, onAdvance }: {
       </div>
       <span className={`sc-kitchen-status is-${status}`}>{labels[status]}</span>
     </header>
+    <p className="sc-kitchen-grill">Способ оплаты: {paymentMethodLabel(ticket.paymentMethod)}</p>
     {order.shawarmas.length > 0 && <p className="sc-kitchen-grill">{grill ? 'Поджарить на гриле' : 'Без гриля'}</p>}
     {order.shawarmas.map((recipe, index) => (
       <section className="sc-kitchen-item" key={index}>

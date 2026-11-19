@@ -1,5 +1,5 @@
 import {ingredients} from './data';
-import type {IngredientId} from './domain';
+import {isCustomIngredientId,type IngredientId} from './domain';
 import {extrasMenu,type ExtraId} from './extraMenuCatalog';
 
 export const PRODUCT_INFO_KEY='shawarma-craft:product-info:v1';
@@ -41,7 +41,7 @@ const allergenIds=new Set<string>(allergenOptions.map(item=>item.id));
 function object(value:unknown):value is Record<string,unknown>{
  return value!==null&&typeof value==='object'&&!Array.isArray(value);
 }
-function unknownInfo():ProductInfo{
+export function unknownInfo():ProductInfo{
  return {verified:false,allergens:[],spice:null,crossContactNote:'',verifiedAt:null};
 }
 export function createProductInfo():ProductInfoSettings{
@@ -75,7 +75,7 @@ export function validateProductInfo(value:unknown):ProductInfoResult{
  const settings=createProductInfo();
  for(const [kind,known] of [['ingredients',ingredientIds],['extras',extraIds]] as const){
   const input=value[kind] as Record<string,unknown>;
-  if(Object.keys(input).some(id=>!known.has(id)))return {ok:false,error:'Обнаружен неизвестный идентификатор продукта.'};
+  if(Object.keys(input).some(id=>!known.has(id)&&!(kind==='ingredients'&&isCustomIngredientId(id))))return {ok:false,error:'Обнаружен неизвестный идентификатор продукта.'};
   // Newly introduced or missing entries stay explicitly unverified.
   for(const [id,entry] of Object.entries(input)){
    const info=parseInfo(entry);
@@ -140,8 +140,8 @@ export function summarizeProductInfo(settings:ProductInfoSettings,selection:Prod
  ] as const){
   for(const id of new Set(ids)){
    const reference={kind,id};
-   if(!known.has(id)){summary.unknownProducts.push(reference);continue}
-   const info=kind==='ingredient'?safe.ingredients[id as IngredientId]:safe.extras[id as ExtraId];
+   if(!known.has(id)&&!(kind==='ingredient'&&isCustomIngredientId(id))){summary.unknownProducts.push(reference);continue}
+   const info=(kind==='ingredient'?safe.ingredients[id as IngredientId]:safe.extras[id as ExtraId])??unknownInfo();
    if(!info.verified)summary.unverified.push(reference);
    if(info.spice===null)summary.unknownSpice.push(reference);
    else summary.knownMaxSpice=Math.max(summary.knownMaxSpice??0,info.spice) as SpiceLevel;

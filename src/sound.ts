@@ -1,7 +1,7 @@
-import type {IngredientId} from './domain';
+import {isCustomIngredientId,visualIngredientId,type CoreIngredientId} from './domain';
 
 type FoodSound='meat'|'juicy'|'cucumber'|'onion'|'crunch'|'leaf'|'cabbage'|'shreds'|'sauce'|'fries'|'crisp'|'soft'|'grains';
-const ingredientSounds:Record<IngredientId,FoodSound>={
+const ingredientSounds:Record<CoreIngredientId,FoodSound>={
  chicken:'meat',beef:'meat',tomato:'juicy',cucumber:'cucumber',lettuce:'leaf',
  cheese:'shreds',onion:'onion',white:'sauce',hot:'sauce',pepper:'crunch',
  cabbage:'cabbage',pickle:'juicy',carrot:'shreds',fries:'fries',falafel:'crisp',
@@ -11,7 +11,7 @@ const ingredientSounds:Record<IngredientId,FoodSound>={
 // Offline-processed, locally hosted CC0 ASMR Foley. See public/audio/CREDITS.md.
 const recordingNames=['cucumber','tomato','onion','cabbage','vegetable','leaf','carrot','meat-cut','meat-land','sauce','fries','fold','bread','grill','remove'] as const;
 type RecordingName=typeof recordingNames[number];
-const ingredientRecordings:Partial<Record<IngredientId,RecordingName>>={
+const ingredientRecordings:Partial<Record<CoreIngredientId,RecordingName>>={
  cucumber:'cucumber',pickle:'cucumber',tomato:'tomato',onion:'onion',lettuce:'leaf',cabbage:'cabbage',
  carrot:'carrot',pepper:'vegetable',jalapeno:'vegetable',mushroom:'vegetable',
  chicken:'meat-land',beef:'meat-land',fries:'fries',falafel:'fries',
@@ -34,7 +34,7 @@ function loadRecordings(ctx:AudioContext){
  }
 }
 function recorded(ctx:AudioContext,kind:string,at:number){
- const name=Object.hasOwn(ingredientRecordings,kind)?ingredientRecordings[kind as IngredientId]:stageRecordings[kind];
+ const name=Object.hasOwn(ingredientRecordings,kind)?ingredientRecordings[kind as CoreIngredientId]:stageRecordings[kind];
  const buffer=name&&recordings.get(name);
  if(!buffer)return false;
  const source=ctx.createBufferSource();
@@ -196,6 +196,7 @@ export function unlockAudio(enabled:boolean):void{
 
 export function sound(kind:string,enabled:boolean){
  if(!enabled||document.hidden)return;
+ if(isCustomIngredientId(kind))kind=visualIngredientId(kind);
  const timestamp=performance.now();
  if(kind!=='remove'&&timestamp-lastSoundAt<35)return;
  lastSoundAt=timestamp;
@@ -208,7 +209,7 @@ export function sound(kind:string,enabled:boolean){
   const at=ctx.currentTime;
   if(recorded(ctx,kind,at))return;
   if(Object.hasOwn(ingredientSounds,kind)){
-   food(ctx,ingredientSounds[kind as IngredientId],at);
+   food(ctx,ingredientSounds[kind as CoreIngredientId],at);
   }else if(kind==='ready'){
    [523,659,784].forEach((frequency,i)=>tone(ctx,at+i*.08,frequency,.17,.075));
   }else if(kind==='cut'){

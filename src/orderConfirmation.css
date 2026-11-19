@@ -1,0 +1,85 @@
+.sc-confirm-order {
+  width: min(560px, calc(100vw - 24px));
+  max-width: none;
+  max-height: min(85vh, 900px);
+  max-height: min(85svh, 900px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 20px 70px #0006;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.sc-confirm-order::backdrop { background: #161613b3; }
+.sc-confirm-order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 8px 18px;
+}
+.sc-confirm-order-header h2 { margin: 0; font-size: clamp(20px, 5vw, 26px); line-height: 1.2; }
+.sc-confirm-order-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: transparent;
+}
+.sc-confirm-order-content { padding: 0 18px 14px; }
+.sc-confirm-order-warning {
+  padding: 10px 12px;
+  margin: 0 0 14px;
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  background: var(--amber-pale);
+  font-weight: 700;
+  line-height: 1.45;
+}
+.sc-confirm-order-review { color: #8d361d; font-weight: 700; line-height: 1.4; }
+.sc-confirm-order-grill { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; margin: 14px 0 0; }
+.sc-confirm-order-actions {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 18px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+.sc-confirm-order-actions button {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+.sc-confirm-order-back { background: transparent; }
+.sc-confirm-order-actions .sc-confirm-order-submit { background: var(--amber); border-color: var(--amber); }
+.sc-confirm-order-actions .sc-confirm-order-submit:hover { background: var(--amber-hover); }
+@media (max-width: 420px) {
+  .sc-confirm-order-content { padding-inline: 12px; }
+  .sc-confirm-order-header { padding-left: 12px; }
+  .sc-confirm-order-actions { grid-template-columns: 1fr; padding-inline: 12px; }
+}
+
+.sc-confirm-order-payment { margin: 18px 0 0; padding: 8px 10px 10px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; }
+.sc-confirm-order-payment legend { padding: 0 5px; font-weight: 800; }
+.sc-confirm-order-payment label { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 2px; cursor: pointer; }
+.sc-confirm-order-payment input { flex: 0 0 auto; width: 19px; height: 19px; margin: 0; accent-color: var(--signal); }
+.sc-confirm-order-payment strong, .sc-confirm-order-payment small { display: block; }
+.sc-confirm-order-payment small { margin-top: 3px; font-size: 12px; line-height: 1.35; color: var(--muted); }
+.sc-confirm-order-payment .is-disabled { color: var(--muted); cursor: default; }
+.sc-confirm-order-demo { margin: 2px 0 8px; font-size: 13px; font-weight: 700; }

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CatalogSettings } from './catalogSettings';
 import { classicIds } from './data';
+import {isCustomIngredientId} from './domain';
+import {formatMoney} from './pricing';
 import { defaultPricing, DEMO_PRICE_NOTICE, parseRubles, rublesInput, validatePricingSettings, type PricingSettings } from './pricing';
 import './priceSettings.css';
 
@@ -85,11 +87,11 @@ export default function PriceSettingsPanel({ pricing, catalog, onSave, onClose }
       <fieldset><legend>Базовая цена шаурмы</legend>
         <PriceField label="Цена одной шаурмы" value={draft.base} onChange={base => change(current => ({ ...current, base }))}/>
         <p>Лаваш и классический состав входят в цену. Удаление базового ингредиента сохраняет базовую цену.</p>
-        <p>Включены {catalog.ingredients.filter(item => classicIds.includes(item.id)).map(item => item.name).join(', ')}.</p>
+        <p>Включены {catalog.ingredients.filter(item => classicIds.some(id=>id===item.id)).map(item => item.name).join(', ')}.</p>
       </fieldset>
       <fieldset><legend>Доплаты за ингредиенты</legend>
         <p>Каждый выбранный ингредиент сверх классического состава оплачивается один раз в каждой шаурме.</p>
-        <div className="sc-prices-grid">{catalog.ingredients.filter(item => !classicIds.includes(item.id)).map(item => (
+        <div className="sc-prices-grid">{catalog.ingredients.filter(item => !classicIds.some(id=>id===item.id)&&!isCustomIngredientId(item.id)).map(item => (
           <PriceField key={item.id} label={item.name} value={draft.ingredients[item.id]}
             onChange={value => change(current => ({ ...current, ingredients: { ...current.ingredients, [item.id]: value } }))}/>
         ))}</div>

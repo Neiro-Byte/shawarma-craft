@@ -2,12 +2,14 @@ import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
 import {RoundedBox} from '@react-three/drei';
 import {BufferAttribute,BufferGeometry,Color,DoubleSide,InstancedMesh,Object3D,Shape,Vector2} from 'three';
 import type {ExtraId} from './extraMenuCatalog';
+import type {PaymentMethod} from './payment';
 import {centeredSlot,servingLayout} from './sceneLayout';
 
 export type ServingOrder = {
  id: number;
  withShawarma: boolean;
  shawarmaQuantity: number;
+ paymentMethod?: PaymentMethod;
  extras: {id: ExtraId;quantity: number}[];
 };
 

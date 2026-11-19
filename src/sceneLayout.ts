@@ -1,4 +1,4 @@
-import {MAX_FILLINGS,type IngredientId} from './domain';
+import {MAX_FILLINGS,visualIngredientId,type IngredientId} from './domain';
 
 // Final-state layout only. Animation trajectories are intentionally separate.
 export const roll = {radius:.48,centerY:.87,halfLength:1.275} as const;
@@ -53,4 +53,4 @@ export function endPosition(index:number,count:number):[number,number,number]{
 
 export const rotisserieLayout={position:[-4.52,-.15,-4.02] as [number,number,number],cutPoint:[-4.52,1.20,-3.43] as [number,number,number],camera:[-7.2,3.25,.4] as [number,number,number],cameraTarget:[-4.52,1.1,-3.6] as [number,number,number],cutDelay:.55,cutDuration:2.7} as const;
 
-export function ingredientPieceCount(id:IngredientId){return id==='chicken'?16:id==='lettuce'?7:9}
+export function ingredientPieceCount(input:IngredientId){const id=visualIngredientId(input);return id==='chicken'?16:id==='lettuce'?7:9}

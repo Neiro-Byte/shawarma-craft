@@ -1,5 +1,5 @@
 import {ingredients} from './data';
-import {MAX_FILLINGS,type IngredientId} from './domain';
+import {MAX_FILLINGS,isCustomIngredientId,type IngredientId} from './domain';
 import {extrasMenu,type ExtraId} from './extraMenuCatalog';
 
 export const ORDER_DRAFT_KEY='shawarma-craft:order-draft:v1';
@@ -36,7 +36,7 @@ export function parseOrderDraft(raw:string):OrderDraft|null{
   if(strictOrder!==undefined&&typeof strictOrder!=='boolean')return null;
   if(baseId!==null&&(typeof baseId!=='string'||baseId.length>80||!/^[-a-zA-Z0-9_]+$/.test(baseId)))return null;
   if(ingredientIds.length>MAX_FILLINGS||new Set(ingredientIds).size!==ingredientIds.length)return null;
-  if(ingredientIds.some(id=>typeof id!=='string'||!ingredientsById.has(id)))return null;
+  if(ingredientIds.some(id=>typeof id!=='string'||(!ingredientsById.has(id)&&!isCustomIngredientId(id))))return null;
   validatedShawarmas.push({baseId,ingredientIds:ingredientIds as IngredientId[],...(strictOrder?{strictOrder}:{})});
  }
  const validatedExtras:ExtraQuantities={};

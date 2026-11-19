@@ -1,8 +1,9 @@
+import type { PaymentMethod } from './payment';
 import type { CatalogSettings } from './catalogSettings';
 import type { PricedOrder, PricingSettings } from './pricing';
 
 export type KitchenTicket = { id: number; status: 'accepted' | 'preparing' | 'ready' };
-export type KitchenOrderInput = { requestId: string; order: PricedOrder; grill: boolean };
+export type KitchenOrderInput = { requestId: string; order: PricedOrder; grill: boolean; paymentMethod?: PaymentMethod };
 export type SharedMenu = { catalog: CatalogSettings | null; pricing?: PricingSettings | null };
 
 export const kitchenStatusLabel: Record<KitchenTicket['status'], string> = {
@@ -29,8 +30,9 @@ export function kitchenWrite(method: string, data: unknown): RequestInit {
 
 const pendingKey = 'shawarma-craft:kitchen-pending:v1';
 
-export function reserveKitchenRequest(order: PricedOrder, grill: boolean): string {
-  const signature = JSON.stringify({ order, grill });
+export function reserveKitchenRequest(order: PricedOrder, grill: boolean, paymentMethod: PaymentMethod = 'cashier'): string {
+  const signature = JSON.stringify({ order, grill, paymentMethod });
+  const legacyCashierSignature = JSON.stringify({ order, grill });
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   bytes[6] = (bytes[6] & 15) | 64;
   bytes[8] = (bytes[8] & 63) | 128;
@@ -38,7 +40,8 @@ export function reserveKitchenRequest(order: PricedOrder, grill: boolean): strin
   const requestId = [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
   try {
     const pending = JSON.parse(localStorage.getItem(pendingKey) ?? 'null');
-    if (pending?.signature === signature && /^[0-9a-f-]{36}$/.test(pending.id)) return pending.id;
+    if ((pending?.signature === signature || (paymentMethod === 'cashier' && pending?.signature === legacyCashierSignature)) &&
+        /^[0-9a-f-]{36}$/.test(pending.id)) return pending.id;
     localStorage.setItem(pendingKey, JSON.stringify({ id: requestId, signature }));
   } catch {
     // The open order still keeps its request ID if browser storage is disabled.

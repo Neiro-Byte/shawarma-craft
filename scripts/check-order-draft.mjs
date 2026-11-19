@@ -9,7 +9,7 @@ function compile(moduleName) {
   const {outputText} = ts.transpileModule(input, {
     compilerOptions:{target:ts.ScriptTarget.ES2022, module:ts.ModuleKind.ES2022},
   });
-  const code = outputText.replace(/from ['"]\.\/(data|domain|extraMenuCatalog)['"]/g, (_,name)=>`from '${compile(name)}'`);
+  const code = outputText.replace(/from ['"]\.\/(data|domain|extraMenuCatalog|ingredientLibrary)['"]/g, (_,name)=>`from '${compile(name)}'`);
   const url = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
   modules.set(moduleName,url);
   return url;

@@ -7,7 +7,9 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { TLSSocket } from 'node:tls';
 import type { Plugin } from 'vite';
 import { defaultCatalog, validateCatalogSettings, type CatalogSettings } from '../src/catalogSettings';
+import { MAX_CATALOG_IMAGES_LENGTH } from '../src/ingredientLibrary';
 import { MAX_FILLINGS, type IngredientId } from '../src/domain';
+import { isPaymentMethod, ONLINE_PAYMENT_UNAVAILABLE, type PaymentMethod } from '../src/payment';
 import type { ExtraId } from '../src/extraMenuCatalog';
 import {
   calculateOrderPrice, defaultPricing, validatePricingSettings, type PriceOrderInput, type PricedOrder, type PricingSettings,
@@ -29,6 +31,7 @@ type StoredOrder = {
   status: Status;
   order_json: string;
   grill: number;
+  payment_method: PaymentMethod;
   created_at: string;
 };
 type SharedMenu = { catalog: CatalogSettings | null; pricing: PricingSettings | null };
@@ -53,6 +56,7 @@ function orderResponse(row: StoredOrder) {
     id: row.id,
     order: JSON.parse(row.order_json) as PricedOrder,
     grill: row.grill === 1,
+    paymentMethod: row.payment_method ?? 'cashier',
     status: row.status,
     createdAt: row.created_at,
   };
@@ -67,11 +71,11 @@ function writeJson(response: ServerResponse, status: number, data: unknown) {
   response.end(JSON.stringify(data));
 }
 
-async function readBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function readBody(request: IncomingMessage,limit=maxBodySize): Promise<Record<string, unknown>> {
   if (request.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/json') {
     throw new ApiError(415, 'Ожидается запрос в формате JSON.');
   }
-  if (Number(request.headers['content-length']) > maxBodySize) {
+  if (Number(request.headers['content-length']) > limit) {
     request.resume();
     throw new ApiError(413, 'Слишком большой запрос.');
   }
@@ -80,7 +84,7 @@ async function readBody(request: IncomingMessage): Promise<Record<string, unknow
   for await (const chunk of request.iterator({ destroyOnReturn: false })) {
     const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += bytes.length;
-    if (size > maxBodySize) {
+    if (size > limit) {
       request.resume();
       throw new ApiError(413, 'Слишком большой запрос.');
     }
@@ -159,6 +163,7 @@ function createKitchenHandler(root: string, publicDir: string, outDir: string) {
           status TEXT NOT NULL DEFAULT 'accepted' CHECK (status IN ('accepted', 'preparing', 'ready')),
           order_json TEXT NOT NULL,
           grill INTEGER NOT NULL CHECK (grill IN (0, 1)),
+          payment_method TEXT NOT NULL DEFAULT 'cashier' CHECK (payment_method IN ('cashier', 'online_card')),
           created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS menu (
@@ -167,6 +172,18 @@ function createKitchenHandler(root: string, publicDir: string, outDir: string) {
           pricing_json TEXT
         );
       `);
+      // A short write transaction serializes migration across multiple server instances.
+      opened.exec('BEGIN IMMEDIATE');
+      try {
+        const columns = opened.prepare('PRAGMA table_info(orders)').all();
+        if (!columns.some(column => column.name === 'payment_method')) {
+          opened.exec("ALTER TABLE orders ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cashier' CHECK (payment_method IN ('cashier', 'online_card'))");
+        }
+        opened.exec('COMMIT');
+      } catch (error) {
+        opened.exec('ROLLBACK');
+        throw error;
+      }
     } catch (error) {
       opened.close();
       throw error;
@@ -250,12 +267,20 @@ function createKitchenHandler(root: string, publicDir: string, outDir: string) {
     if (typeof requestId !== 'string' || !requestIdPattern.test(requestId) || typeof grill !== 'boolean') {
       throw new ApiError(400, 'Не удалось проверить номер запроса и настройку гриля.');
     }
+    const paymentMethod = body.paymentMethod === undefined ? 'cashier' : body.paymentMethod;
+    if (!isPaymentMethod(paymentMethod)) throw new ApiError(400, 'Выберите доступный способ оплаты.');
+    // There is no gateway integration yet. Selection alone must never fake a paid order.
+    if (paymentMethod === 'online_card') throw new ApiError(409, ONLINE_PAYMENT_UNAVAILABLE);
     const { input, expectedTotal } = extractOrder(body.order);
-    const hash = digest(JSON.stringify({ grill, input, expectedTotal })).toString('hex');
+    const legacyHash = digest(JSON.stringify({ grill, input, expectedTotal })).toString('hex');
+    const hash = digest(JSON.stringify({ grill, input, expectedTotal, paymentMethod })).toString('hex');
     const byRequest = db().prepare('SELECT * FROM orders WHERE request_id = ?');
     const retry = () => {
       const row = byRequest.get(requestId) as StoredOrder | undefined;
-      if (row && row.payload_hash !== hash) throw new ApiError(409, 'Этот запрос уже связан с другим заказом.');
+      const legacyCashierRetry = row?.payment_method === 'cashier' && row.payload_hash === legacyHash;
+      if (row && row.payload_hash !== hash && !legacyCashierRetry) {
+        throw new ApiError(409, 'Этот запрос уже связан с другим заказом.');
+      }
       return row;
     };
 
@@ -276,9 +301,9 @@ function createKitchenHandler(root: string, publicDir: string, outDir: string) {
       throw new ApiError(409, 'Цены обновились. Проверьте новый итог перед оформлением.');
     }
     const inserted = db().prepare(`
-      INSERT INTO orders (request_id, payload_hash, order_json, grill, created_at) VALUES (?, ?, ?, ?, ?)
+      INSERT INTO orders (request_id, payload_hash, order_json, grill, payment_method, created_at) VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(request_id) DO NOTHING RETURNING *
-    `).get(requestId, hash, JSON.stringify(priced.order), Number(grill), new Date().toISOString()) as StoredOrder | undefined;
+    `).get(requestId, hash, JSON.stringify(priced.order), Number(grill), paymentMethod, new Date().toISOString()) as StoredOrder | undefined;
     const row = inserted ?? retry();
     if (!row) throw new Error('Order insert returned no row');
     return { created: Boolean(inserted), order: { ...orderResponse(row), requestId } };
@@ -315,7 +340,7 @@ function createKitchenHandler(root: string, publicDir: string, outDir: string) {
       if (method === 'GET') return writeJson(response, 200, readMenu());
       if (method === 'PUT') {
         requireStaff(request);
-        return writeJson(response, 200, writeMenu(await readBody(request)));
+        return writeJson(response, 200, writeMenu(await readBody(request,MAX_CATALOG_IMAGES_LENGTH+512*1024)));
       }
     }
     if (endpoint === '/orders') {

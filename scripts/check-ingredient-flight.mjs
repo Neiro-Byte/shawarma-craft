@@ -27,7 +27,7 @@ function compile(url){
 }
 const {ingredientFlightPoint,worldToIngredientSource}=await import(compile(helperURL));
 const {piecePose,cheesePose,saucePoint,trayLayout,sauceStation,rotisserieLayout,ingredientPieceCount,servingLayout}=await import(compile(new URL('../src/sceneLayout.ts',import.meta.url)));
-const {MAX_FILLINGS}=await import(compile(new URL('../src/domain.ts',import.meta.url)));
+const {MAX_FILLINGS,ingredientMetadata,visualIngredientId}=await import(compile(new URL('../src/domain.ts',import.meta.url)));
 assert.equal(MAX_FILLINGS,10);
 assert.equal(typeof ingredientPieceCount,'function','Нет export ingredientPieceCount в sceneLayout.ts');
 assert.equal(ingredientPieceCount('chicken'),16,'В порции должно быть 16 кусочков курицы');
@@ -202,7 +202,7 @@ function componentHarness(name,parentMatrix=new Matrix4()){
  const jsx=(type,props)=>({type,props});
  const context={
   THREE,gsap,piecePose,cheesePose,saucePoint,rotisserieLayout,ingredientFlightPoint,worldToIngredientSource,
-  sauceBottleScale:1.48,useThree:selector=>selector({scene,invalidate,gl:{domElement:canvas}}),sauceColors:{white:'#ffffff'},Food:'food',SauceBottle:'bottle',CHEESE_STRIP_SIZE:cheeseStripSize,
+  sauceBottleScale:1.48,useThree:selector=>selector({scene,invalidate,gl:{domElement:canvas}}),sauceColors:{white:'#ffffff'},ingredientMetadata,visualIngredientId,Food:'food',SauceBottle:'bottle',CHEESE_STRIP_SIZE:cheeseStripSize,
   useFrame(callback){frame=callback},
   useRef(initial){const index=cursor++;slots[index]??={current:initial};return slots[index]},
   useMemo(factory,deps){

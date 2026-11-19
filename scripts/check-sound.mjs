@@ -104,7 +104,13 @@ globalThis.fetch = async url => {
 };
 MockAudioContext.prototype.decodeAudioData = async function(data) { return data; };
 
-const sourceText = readFileSync(new URL('../src/sound.ts', import.meta.url), 'utf8').replaceAll('import.meta.env.BASE_URL', JSON.stringify('/shawarma-craft/'));
+const domainText = readFileSync(new URL('../src/domain.ts', import.meta.url), 'utf8');
+const domainCode = ts.transpileModule(domainText, {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const domainUrl = 'data:text/javascript;base64,' + Buffer.from(domainCode).toString('base64');
+const domain = await import(domainUrl);
+const sourceText = readFileSync(new URL('../src/sound.ts', import.meta.url), 'utf8')
+ .replaceAll('import.meta.env.BASE_URL', JSON.stringify('/shawarma-craft/'))
+ .replace("from './domain'", "from '" + domainUrl + "'");
 const compiled = ts.transpileModule(sourceText, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText;
@@ -128,8 +134,7 @@ assert.equal(contexts, 1);
 assert(resumes > 0, 'Audio must unlock during the user gesture');
 assert.equal(active().length, 0, 'Unlocking must not produce sound');
 
-const domainText = readFileSync(new URL('../src/domain.ts', import.meta.url), 'utf8');
-const ids = domainText.match(/export type IngredientId = ([^;]+);/)[1].match(/'[^']+'/g).map(id => id.slice(1, -1));
+const ids = domainText.match(/export type CoreIngredientId\s*=\s*([^;]+);/)[1].match(/'[^']+'/g).map(id => id.slice(1, -1));
 for (const kind of [...ids, 'cut', 'fold', 'grill', 'place', 'bread', 'ready', 'remove']) {
   const before = sources.length;
   play(kind);
@@ -202,6 +207,26 @@ for (const kind of ['white', 'hot', 'bbq', 'cheeseSauce', 'tomatoSauce', 'yogurt
  assert.equal(sources.at(-1).buffer.recording, 'sauce.mp3', `${kind} uses bottle squeeze`);
  sounds.stopSounds();
 }
+domain.registerIngredientVisuals([
+ {id:'custom-chicken-test',name:'Индейка',emoji:'🍗',color:'#c99955',note:'Тест',category:'protein',visualId:'chicken'},
+ {id:'custom-sauce-test',name:'Соус',emoji:'🥛',color:'#eee',note:'Тест',category:'sauce',visualId:'white'},
+]);
+for (const [id, recording] of [['custom-chicken-test','meat-land.mp3'],['custom-sauce-test','sauce.mp3'],['custom-unknown-test','tomato.mp3']]) {
+ before = sources.length;
+ play(id);
+ assert.equal(sources.length, before + 1);
+ assert.equal(sources.at(-1).buffer.recording, recording, 'Custom products use their selected visual/audio family');
+ sounds.stopSounds();
+}
+domain.registerIngredientVisuals([]);
+// Cancellation is an explicit new action even when it follows a landing within 35 ms.
+play('cucumber');
+sounds.stopSounds();
+before = sources.length;
+sounds.sound('remove', true);
+assert.equal(sources.length, before + 1, 'Immediate undo must not be throttled after cancellation');
+assert.equal(sources.at(-1).buffer.recording, 'remove.mp3');
+sounds.stopSounds();
 play('cucumber');
 document.hidden = true;
 listeners.get('visibilitychange')();

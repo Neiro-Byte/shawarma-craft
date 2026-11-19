@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { defaultCatalog, validateCatalogSettings, type CatalogSettings } from './catalogSettings';
 import { MAX_FILLINGS, type IngredientId } from './domain';
+import IngredientManager from './IngredientManager';
 import './adminPanel.css';
 
 type AdminPanelProps = {
@@ -35,6 +36,10 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
   const [confirmation, setConfirmation] = useState<'close' | 'reset'>();
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [ingredientError, setIngredientError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const saveActive = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const tabRef = useRef<HTMLButtonElement>(null);
   const tabId = useId();
@@ -42,11 +47,11 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
 
   useEffect(() => { headingRef.current?.focus(); }, []);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !uploadBusy && !ingredientError) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, uploadBusy, ingredientError]);
 
   function change(update: (current: CatalogSettings) => CatalogSettings) {
     setDraft(update);
@@ -54,8 +59,11 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
     setError('');
   }
   async function save() {
+    if (uploadBusy || ingredientError || saveActive.current) return;
     const result = validateCatalogSettings(draft);
     if (!result.ok) { setError(result.error); setMessage(''); return; }
+    saveActive.current = true;
+    setSaving(true);
     try {
       const failure = await onSave(result.catalog);
       if (failure) { setError(failure); setMessage(''); return; }
@@ -65,6 +73,9 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
       setMessage('Изменения сохранены.');
     } catch {
       setError('Не удалось сохранить изменения. Черновик сохранён в открытой панели, попробуйте ещё раз.');
+    } finally {
+      saveActive.current = false;
+      setSaving(false);
     }
   }
   function toggleIngredient(recipeId: string, ingredientId: IngredientId) {
@@ -82,16 +93,16 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
   }
 
   return <section className="sc-admin" aria-labelledby={tabId + '-heading'}>
-    <header className="sc-admin-header" inert={!!confirmation}>
+    <header className="sc-admin-header" inert={!!confirmation || saving}>
       <div><h1 id={tabId + '-heading'} ref={headingRef} tabIndex={-1}>Настройка меню</h1>
         <p>Настройки этого браузера. Изменения применяются после сохранения.</p></div>
-      {onProductInfo&&<button type="button" disabled={dirty} title={dirty?'Сначала сохраните изменения меню':undefined} onClick={onProductInfo}>Аллергены и острота</button>}
-      {onPrices&&<button type="button" disabled={dirty} title={dirty?'Сначала сохраните изменения меню':undefined} onClick={onPrices}>Настройка цен</button>}
-      <button type="button" onClick={() => dirty ? setConfirmation('close') : onClose()}>Закрыть</button>
+      {onProductInfo&&<button type="button" disabled={dirty || uploadBusy || !!ingredientError} title={dirty?'Сначала сохраните изменения меню':undefined} onClick={onProductInfo}>Аллергены и острота</button>}
+      {onPrices&&<button type="button" disabled={dirty || uploadBusy || !!ingredientError} title={dirty?'Сначала сохраните изменения меню':undefined} onClick={onPrices}>Настройка цен</button>}
+      <button type="button" disabled={uploadBusy} onClick={() => dirty || ingredientError ? setConfirmation('close') : onClose()}>Закрыть</button>
     </header>
-    <div className="sc-admin-tabs" role="tablist" aria-label="Разделы настройки меню" inert={!!confirmation}>
+    <div className="sc-admin-tabs" role="tablist" aria-label="Разделы настройки меню" inert={!!confirmation || saving}>
       {tabs.map((item, index) => <button
-        type="button" role="tab" key={item.id} id={tabId + '-' + item.id}
+        type="button" role="tab" disabled={uploadBusy || !!ingredientError} key={item.id} id={tabId + '-' + item.id}
         ref={tab === item.id ? tabRef : undefined}
         aria-selected={tab === item.id} aria-controls={tabId + '-panel'}
         tabIndex={tab === item.id ? 0 : -1}
@@ -111,20 +122,9 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
         }}
       >{item.title}</button>)}
     </div>
-    <div className="sc-admin-content" role="tabpanel" id={tabId + '-panel'} aria-labelledby={tabId + '-' + tab} inert={!!confirmation}>
-      {tab === 'ingredients' && draft.ingredients.map(item => <fieldset className="sc-admin-card" key={item.id}>
-        <legend>{item.emoji} {item.name || 'Ингредиент'}</legend>
-        <TextField label="Название" value={item.name} onChange={name => change(current => ({
-          ...current, ingredients: current.ingredients.map(value => value.id === item.id ? { ...value, name } : value),
-        }))}/>
-        <TextField label="Описание" multiline value={item.note} onChange={note => change(current => ({
-          ...current, ingredients: current.ingredients.map(value => value.id === item.id ? { ...value, note } : value),
-        }))}/>
-        <label className="sc-admin-check"><input type="checkbox" checked={item.available} onChange={event => {
-          const available = event.target.checked;
-          change(current => ({ ...current, ingredients: current.ingredients.map(value => value.id === item.id ? { ...value, available } : value) }));
-        }}/>Доступен в меню</label>
-      </fieldset>)}
+    <div className="sc-admin-content" role="tabpanel" id={tabId + '-panel'} aria-labelledby={tabId + '-' + tab} inert={!!confirmation || saving}>
+      {tab === 'ingredients' && <IngredientManager items={draft.ingredients} onChange={change}
+        onBusyChange={setUploadBusy} onInvalidChange={setIngredientError}/>}
       {tab === 'extras' && draft.extras.map(item => <fieldset className="sc-admin-card" key={item.id}>
         <legend>{item.title || 'Дополнение'}</legend>
         <TextField label="Название" value={item.title} onChange={title => change(current => ({
@@ -191,11 +191,11 @@ export default function AdminPanel({ catalog, onSave, onClose, onPrices, onProdu
       </fieldset>}
     </div>
     <footer className="sc-admin-footer" inert={!!confirmation}>
-      {error && <p className="sc-admin-error" role="alert">{error}</p>}
-      <p role="status">{message || (dirty ? 'Есть несохранённые изменения.' : 'Все изменения сохранены.')}</p>
+      {(error || ingredientError) && <p className="sc-admin-error" role="alert">{error || ingredientError}</p>}
+      <p role="status">{uploadBusy ? 'Подготавливаем фото. Дождитесь завершения перед сохранением.' : saving ? 'Сохраняем меню…' : message || (dirty ? 'Есть несохранённые изменения.' : 'Все изменения сохранены.')}</p>
       <div className="sc-admin-actions">
-        <button type="button" className="sc-admin-save" disabled={!dirty} onClick={save}>Сохранить изменения</button>
-        <button type="button" onClick={() => setConfirmation('reset')}>Сбросить каталог</button>
+        <button type="button" className="sc-admin-save" disabled={!dirty || uploadBusy || !!ingredientError || saving} onClick={save}>Сохранить изменения</button>
+        <button type="button" disabled={uploadBusy || saving} onClick={() => setConfirmation('reset')}>Сбросить каталог</button>
       </div>
     </footer>
     {confirmation && <div className="sc-admin-confirm-backdrop">

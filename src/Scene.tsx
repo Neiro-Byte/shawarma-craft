@@ -12,11 +12,12 @@ import {ServingShelf,ServingTray,type ServingOrder} from './ServingTray';
 import PickupWindow from './PickupWindow';
 import ShawarmaInterior from './ShawarmaInterior';
 import {useCookPerformance} from './scenePerformance';
-import {isSauceId,type IngredientId} from './domain';
+import {isSauceId,visualIngredientId,ingredientMetadata,registeredCustomIngredients,type IngredientId} from './domain';
 type SceneSound=(kind:string)=>void;
 type IngredientPick=(id:IngredientId,origin?:[number,number,number])=>void;
 import {ingredients,latestManualBatch,type Batch,type Phase} from './data';
 import {roll,fillingTransform,endcap,grillLayout,batchRollLayout,centeredSlot,denseLayers,piecePose,ingredientPieceCount,cheesePose,saucePoint,endPosition,rotisserieLayout,trayLayout,sauceStation,servingLayout,servingCameraDistance} from './sceneLayout';
+function findIngredient(id:IngredientId|undefined){return id?ingredients.find(item=>item.id===id)??ingredientMetadata(id):undefined}
 const TAU=Math.PI*2;
 const sauceBottleScale=1.48;
 type LiftSauce=(id:IngredientId,key:number)=>{source:Point3;putBack:()=>void};
@@ -230,7 +231,7 @@ function Sauce({batch,settle,onComplete,liftSauce,onSound}:{batch:Batch;settle:b
  const scene=useThree(state=>state.scene);
  const invalidate=useThree(state=>state.invalidate);
  const started=useRef(false);const bottle=useRef<THREE.Group>(null!);const material=useRef<THREE.MeshStandardMaterial>(null!);const stream=useRef<THREE.Mesh>(null!);
- const color=sauceColors[batch.id as keyof typeof sauceColors]??sauceColors.white;
+ const color=ingredientMetadata(batch.id)?.color??sauceColors[visualIngredientId(batch.id) as keyof typeof sauceColors]??sauceColors.white;
  const geo=useMemo(()=>new THREE.TubeGeometry(new THREE.CatmullRomCurve3(Array.from({length:100},(_,i)=>new THREE.Vector3(...saucePoint(batch.layer,i/99)))),120,.035,6,false),[batch.layer]);
  useLayoutEffect(()=>{
   const container=bottle.current;
@@ -291,7 +292,7 @@ function Sparkles({celebrate=false,color='#f5bf4e'}:{celebrate?:boolean;color?:s
  return <instancedMesh ref={ref} args={[undefined,undefined,count]}><octahedronGeometry args={[1,0]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={.3}/></instancedMesh>
 }
 function SauceBottle({id,material}:{id:IngredientId;material:React.RefObject<THREE.MeshStandardMaterial>}){
- const color=sauceColors[id as keyof typeof sauceColors];
+ const color=ingredientMetadata(id)?.color??sauceColors[visualIngredientId(id) as keyof typeof sauceColors]??sauceColors.white;
  return <group name={'sauce-bottle-'+id}>
   <RoundedBox args={[.42,.57,.36]} radius={.085} smoothness={2} position={[0,.18,0]} castShadow receiveShadow>
    <meshStandardMaterial ref={material} color={color} emissive="#e8bd42" emissiveIntensity={0} roughness={.46}/>
@@ -314,7 +315,7 @@ function IngredientTray({id,x,z=trayLayout.z,active,lifted=false,onIngredientPic
  const pointerStart=useRef({x:0,y:0});
  useEffect(()=>{if(!active)gl.domElement.style.cursor='';return()=>{gl.domElement.style.cursor='';feedback.current?.kill();body.current?.scale.set(1,1,1);if(material.current)material.current.emissiveIntensity=0}},[active,gl]);
  return <group ref={root} position={[x,0,z]} visible={!lifted} name={'ingredient-tray-'+id}
-  userData={{ingredientId:id,ingredientName:ingredients.find(item=>item.id===id)?.name}}
+  userData={{ingredientId:id,ingredientName:findIngredient(id)?.name}}
   onPointerDown={active?event=>{
    dragged.current=false;
    pointerStart.current={x:event.clientX,y:event.clientY};
@@ -444,7 +445,7 @@ function World({batches,animateRecipe=false,recipeBatches,phase,inspect,grill,on
  const rollLayers=useMemo(()=>Array.from({length:Math.max(1,batchQuantity)},(_,i)=>
   denseLayers(recipeBatches?.[i]??batches)),[batchQuantity,recipeBatches,batches]);
  const rollColors=useMemo(()=>rollLayers.map(layers=>layers.map(batch=>
-  ingredients.find(item=>item.id===batch.id)?.color??'#dcb06a')),[rollLayers]);
+  findIngredient(batch.id)?.color??'#dcb06a')),[rollLayers]);
  const layers=rollLayers[activeRecipeIndex]??rollLayers[0];
  const [arrivedId,setArrivedId]=useState<number>();
  const arrived=hasServingOrder&&orderId===arrivedId;
@@ -733,7 +734,7 @@ export default function Scene({onUnavailable,onAvailable,onReady,onServed,prepar
  const [contextLost,setContextLost]=useState(false);
  const [cutting,setCutting]=useState(false);
  const [latestIngredient,setLatestIngredient]=useState<IngredientId>();
- const latestItem=ingredients.find(item=>item.id===latestIngredient);
+ const latestItem=findIngredient(latestIngredient);
  const [compact,setCompact]=useState(()=>matchMedia('(max-width: 720px)').matches);
  const [strained,setStrained]=useState(false);
  const reduceQuality=useCallback(()=>setStrained(true),[]);
@@ -753,7 +754,7 @@ export default function Scene({onUnavailable,onAvailable,onReady,onServed,prepar
  sauceShelf.current={available:worldProps.availableIngredientIds,slots:stationSlots};
  const liftSauce=useCallback<LiftSauce>((id,key)=>{
   const {available,slots}=sauceShelf.current;
-  const ids=stationSauceIds.filter(item=>available===undefined||available.includes(item));
+  const ids=[...stationSauceIds,...registeredCustomIngredients().filter(item=>item.category==='sauce').map(item=>item.id)].filter(item=>available===undefined||available.includes(item));
   const index=ids.indexOf(id);
   const page=Math.max(0,Math.floor(index/slots));
   const items=stationPage(ids,undefined,page,slots).ids;
@@ -772,7 +773,7 @@ export default function Scene({onUnavailable,onAvailable,onReady,onServed,prepar
  },[]);
  const [focusedTray,setFocusedTray]=useState<IngredientId>();
  const traySelectionEnabled=worldProps.phase==='build'&&!worldProps.servingOrder&&!contextLost;
- const accessibleTrays=trayIds.filter(id=>
+ const accessibleTrays=[...trayIds,...registeredCustomIngredients().map(item=>item.id)].filter(id=>
   worldProps.availableIngredientIds===undefined||worldProps.availableIngredientIds.includes(id));
  useEffect(()=>{if(!traySelectionEnabled)setFocusedTray(undefined)},[traySelectionEnabled]);
  const recovery=useRef<WEBGL_lose_context|null>(null);
@@ -829,7 +830,7 @@ export default function Scene({onUnavailable,onAvailable,onReady,onServed,prepar
     position:'absolute',width:1,height:1,padding:0,border:0,overflow:'hidden',
     clipPath:'inset(50%)',whiteSpace:'nowrap',
    }}>
-   Добавить {ingredients.find(item=>item.id===id)?.name??id}
+   Добавить {findIngredient(id)?.name??id}
   </button>)}
   {qaWebgl&&renderer&&!contextLost&&<button type="button" disabled={!recovery.current}
    onClick={()=>recovery.current?.loseContext()}

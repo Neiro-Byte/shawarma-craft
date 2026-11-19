@@ -5,7 +5,7 @@ import ts from 'typescript';
 const root = new URL('../', import.meta.url);
 const domainText = readFileSync(new URL('src/domain.ts', root), 'utf8');
 const ast = ts.createSourceFile('domain.ts', domainText, ts.ScriptTarget.Latest, true);
-const idType = ast.statements.find(s => ts.isTypeAliasDeclaration(s) && s.name.text === 'IngredientId');
+const idType = ast.statements.find(s => ts.isTypeAliasDeclaration(s) && s.name.text === 'CoreIngredientId');
 assert(idType && ts.isUnionTypeNode(idType.type), 'IngredientId must be a literal union');
 const expectedIds = idType.type.types.map(t => t.literal.text);
 const loadTs = async path => {

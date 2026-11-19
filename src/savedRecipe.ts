@@ -1,5 +1,5 @@
 import { ingredients } from './data';
-import { MAX_FILLINGS, type IngredientId } from './domain';
+import { MAX_FILLINGS,isCustomIngredientId, type IngredientId } from './domain';
 
 export const SAVED_RECIPE_KEY = 'shawarma-craft:favorite-recipe';
 export const SAVED_RECIPE_VERSION = 1;
@@ -20,7 +20,7 @@ export function validateSavedRecipe(value: unknown): RecipeValidation {
   if (typeof recipe.grill !== 'boolean') return invalid('Настройка гриля в сохранённом рецепте повреждена.');
   const ids = recipe.ingredientIds;
   if (!Array.isArray(ids) || ids.length < 1 || ids.length > MAX_FILLINGS) return invalid(`В сохранённом рецепте должно быть от 1 до ${MAX_FILLINGS} начинок.`);
-  if (!Array.from(ids).every(id => typeof id === 'string' && knownIds.has(id))) return invalid('В сохранённом рецепте есть неизвестные ингредиенты. Сохрани рецепт заново.');
+  if (!Array.from(ids).every(id => typeof id === 'string' && (knownIds.has(id)||isCustomIngredientId(id)))) return invalid('В сохранённом рецепте есть неизвестные ингредиенты. Сохрани рецепт заново.');
   if (new Set(ids).size !== ids.length) return invalid('В сохранённом рецепте повторяются ингредиенты.');
   return { ok: true, recipe: { version: SAVED_RECIPE_VERSION, title: recipe.title.trim(), ingredientIds: [...ids] as IngredientId[], grill: recipe.grill } };
 }

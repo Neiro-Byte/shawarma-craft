@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 
-import { isSauceId, type IngredientId } from './domain';
+import { isSauceId,visualIngredientId,ingredientMetadata, type IngredientId } from './domain';
 export type { IngredientId } from './domain';
 
 type FoodProps = { kind: IngredientId; variant?: number };
@@ -196,8 +196,10 @@ function Pepper({ variant }: { variant: number }) {
   </group>;
 }
 
-export function Food({ kind, variant = 0 }: FoodProps) {
-  if (isSauceId(kind)) return <mesh position={[0, .025, 0]} scale={[.14, .025, .12]} castShadow><sphereGeometry args={[1, 12, 8]}/><meshStandardMaterial color={sauceColors[kind as keyof typeof sauceColors]} roughness={.4}/></mesh>;
+export function Food({ kind:inputKind, variant = 0 }: FoodProps) {
+  const kind=visualIngredientId(inputKind);
+  const customColor=ingredientMetadata(inputKind)?.color;
+  if (isSauceId(kind)) return <mesh position={[0, .025, 0]} scale={[.14, .025, .12]} castShadow><sphereGeometry args={[1, 12, 8]}/><meshStandardMaterial color={customColor??sauceColors[kind as keyof typeof sauceColors]} roughness={.4}/></mesh>;
   switch (kind) {
     case 'chicken': return <Meat beef={false} variant={variant} />;
     case 'beef': return <Meat beef variant={variant} />;

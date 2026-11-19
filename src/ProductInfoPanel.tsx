@@ -2,7 +2,7 @@ import {useEffect,useId,useRef,useState} from 'react';
 import {ingredients} from './data';
 import {extrasMenu} from './extraMenuCatalog';
 import {
- allergenOptions,createProductInfo,PRODUCT_INFO_NOTICE,spiceLabels,validateProductInfo,
+ allergenOptions,createProductInfo,unknownInfo,PRODUCT_INFO_NOTICE,spiceLabels,validateProductInfo,
  type ProductInfo,type ProductInfoCatalog,type ProductInfoSettings,type SpiceLevel,
 } from './productInfo';
 import './productInfo.css';
@@ -32,7 +32,7 @@ export default function ProductInfoPanel({settings,catalog=originalCatalog,onSav
  const choices=kind==='ingredients'?catalog.ingredients.map(item=>({id:item.id,name:item.name})):
   catalog.extras.map(item=>({id:item.id,name:item.title}));
  const selected=choices.find(item=>item.id===selectedId)??choices[0];
- const info=selected?(draft[kind] as Record<string,ProductInfo>)[selected.id]:undefined;
+ const info=selected?((draft[kind] as Record<string,ProductInfo>)[selected.id]??unknownInfo()):undefined;
  useEffect(()=>{heading.current?.focus()},[]);
  useEffect(()=>{
   if(!dirty)return;

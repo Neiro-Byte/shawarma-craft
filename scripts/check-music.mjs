@@ -27,7 +27,12 @@ class MockAudio {
 }
 globalThis.Audio=MockAudio;
 async function moduleFrom(path){
- const source=readFileSync(new URL(path,import.meta.url),'utf8').replaceAll('import.meta.env.BASE_URL',JSON.stringify('/shawarma-craft/'));
+ let source=readFileSync(new URL(path,import.meta.url),'utf8').replaceAll('import.meta.env.BASE_URL',JSON.stringify('/shawarma-craft/'));
+ if(path.endsWith('/sound.ts')){
+  const domain=ts.transpileModule(readFileSync(new URL('../src/domain.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+  const url='data:text/javascript;base64,'+Buffer.from(domain).toString('base64');
+  source=source.replace("from './domain'","from '"+url+"'");
+ }
  const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
  return import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
 }

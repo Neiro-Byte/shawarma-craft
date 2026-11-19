@@ -1,13 +1,16 @@
 import {Component,Suspense,lazy,useCallback,useEffect,useMemo,useRef,useState,type CSSProperties,type ReactNode} from 'react';
 import {RotateCcw,Volume2,VolumeX,Music2,Music4,ArrowUpRight,Check,Minus,Plus,X,Move,ArrowRight,Eye,Trash2,Flame,Search,BookOpen,Utensils,CupSoda,SlidersHorizontal,ArrowUp,ArrowDown,ListOrdered} from 'lucide-react';
 import {classicIds,menuSources,recipeToBatches,latestManualBatch,type Batch,type Phase} from './data';
-import {MAX_FILLINGS,type IngredientCategory,type IngredientId,type RecipePreset} from './domain';
+import {MAX_FILLINGS,registerIngredientVisuals,type IngredientCategory,type IngredientId,type RecipePreset} from './domain';
 import {sound,stopSounds,unlockAudio} from './sound';
 import {setMusicEnabled,unlockMusic,stopMusic} from './music';
 import SavedRecipePanel from './SavedRecipePanel';
 import ExtrasMenu from './ExtrasMenu';
 import MobileOrder from './MobileOrder';
 import OrderSummary from './OrderSummary';
+import OrderConfirmation from './OrderConfirmation';
+import {paymentMethodLabel,type PaymentMethod} from './payment';
+import {ingredientImageSource} from './ingredientLibrary';
 import KitchenInstructions from './KitchenInstructions';
 import LastOrderPanel from './LastOrderPanel';
 import {saveCompletedOrder,type LastOrder,type RepeatOrderDraft} from './lastOrder';
@@ -41,6 +44,16 @@ type DemoOrder = {
  status: 'cooking' | 'serving' | 'served' | 'recovery';
  usesScene: boolean;
  kitchen?: {requestId:string;state:'idle'|'sending'|'failed'|'sent';ticket?:KitchenTicket;error?:string};
+};
+type OrderReview = {
+ withShawarma:boolean;
+ skip3D:boolean;
+ usesScene:boolean;
+ grill:boolean;
+ order:PricedOrder;
+ fingerprint:string;
+ paymentMethod:PaymentMethod;
+ notice?:string;
 };
 type SceneMode = 'visual' | 'quick' | 'fallback';
 const normalize=(value:string)=>value.toLocaleLowerCase('ru').replaceAll('ё','е').trim();
@@ -111,7 +124,7 @@ export default function App(){
  const [pricingLoad]=useState(loadPricing);
  const [pricing,setPricing]=useState(pricingLoad.pricing);
  const [pricingWarning,setPricingWarning]=useState(pricingLoad.status==='invalid'?'Сохранённые цены повреждены. Используем исходные демо-цены.':pricingLoad.status==='unavailable'?'Цены не удалось прочитать. Используем исходные демо-цены.':'');
- const ingredients=catalog.ingredients;
+ const ingredients=useMemo(()=>{registerIngredientVisuals(catalog.ingredients);return catalog.ingredients},[catalog.ingredients]);
  const recipePresets=catalog.recipes;
  const extrasMenu=catalog.extras;
  const ingredientNames=useMemo(()=>new Map(ingredients.map(({id,name})=>[id,name])),[ingredients]);
@@ -152,6 +165,9 @@ export default function App(){
  const [draftWarning,setDraftWarning]=useState(savedDraft.status==='invalid'?'Не удалось восстановить старый черновик.':savedDraft.status==='unavailable'?'Браузер не разрешает сохранять черновик.':'');
  const lastDraft=useRef<string|undefined>(undefined);
  const [order,setOrder]=useState<DemoOrder>();
+ const [orderReview,setOrderReview]=useState<OrderReview>();
+ const orderReviewRef=useRef<OrderReview|undefined>(undefined);
+ const confirmingOrder=useRef(false);
  const [rememberedTicket,setRememberedTicket]=useState(readKitchenTicket);
  const nextOrder=useRef(0);
  const activeOrder=useRef<DemoOrder | undefined>(undefined);
@@ -479,7 +495,7 @@ export default function App(){
   updateOrder({...current,kitchen:{...kitchen,state:'sending'}});
   try{
    const ticket=await kitchenRequest<KitchenTicket>('/orders',kitchenWrite('POST',{
-    requestId:kitchen.requestId,order:current.priced,grill:current.repeatComposition.grill,
+    requestId:kitchen.requestId,order:current.priced,grill:current.repeatComposition.grill,paymentMethod:current.snapshot.paymentMethod??'cashier',
    }));
    clearKitchenRequest(kitchen.requestId);
    const saved={requestId:kitchen.requestId,ticket};
@@ -494,9 +510,28 @@ export default function App(){
    }});
   }
  }
- function startOrder(withShawarma:boolean,skip3D=false){
-  if(locked||activeOrder.current)return;
-  if(!kitchenChecked){setNotice('Проверяем подключение к кухне. Попробуй ещё раз через секунду.');return}
+ function cancelOrderReview(){
+  orderReviewRef.current=undefined;
+  setOrderReview(undefined);
+ }
+ function confirmOrderReview(paymentMethod:PaymentMethod='cashier'):boolean{
+  const reviewed=orderReviewRef.current;
+  if(!reviewed||confirmingOrder.current)return false;
+  confirmingOrder.current=true;
+  try{return startOrder(reviewed.withShawarma,reviewed.skip3D,reviewed,paymentMethod)}
+  finally{confirmingOrder.current=false}
+ }
+ function startOrder(withShawarma:boolean,skip3D=false,reviewed?:OrderReview,paymentMethod:PaymentMethod='cashier'):boolean{
+  if(locked||activeOrder.current)return false;
+  if(reviewed?orderReviewRef.current!==reviewed:!!orderReviewRef.current)return false;
+  if(reviewed&&(!['cashier','online_card'].includes(paymentMethod)||(!staticDemo&&paymentMethod==='online_card'))){
+   const review={...reviewed,notice:'Онлайн-оплата пока не подключена. Выбери оплату на кассе.'};
+   orderReviewRef.current=review;
+   setOrderReview(review);
+   return false;
+  }
+  if(reviewed)cancelOrderReview();
+  if(!kitchenChecked){setNotice('Проверяем подключение к кухне. Попробуй ещё раз через секунду.');return false}
   const extras=extrasMenu.flatMap(({id})=>{
    const quantity=quantities[id]??0;
    return quantity>0?[{id,quantity}]:[];
@@ -506,27 +541,41 @@ export default function App(){
    if(emptyIndex!==-1){
     selectDraft(emptyIndex);
     setNotice(`Шаурма ${emptyIndex+1} без начинки. Добавь хотя бы один ингредиент.`);
-    return;
+    return false;
    }
   }
-  if (!withShawarma && !extras.length) return;
+  if (!withShawarma && !extras.length) return false;
   const unavailableExtra=extrasMenu.find(item=>!item.available&&(quantities[item.id]??0)>0);
-  if(unavailableExtra){setNotice(`«${unavailableExtra.title}» больше недоступно. Убери позицию из заказа.`);return}
+  if(unavailableExtra){setNotice(`«${unavailableExtra.title}» больше недоступно. Убери позицию из заказа.`);return false}
   if(withShawarma){
    const unavailableIndex=drafts.findIndex(draft=>draft.batches.some(batch=>!availableIngredientIds.includes(batch.id)));
    if(unavailableIndex!==-1){
     selectDraft(unavailableIndex);
     setNotice(`В шаурме ${unavailableIndex+1} есть недоступные ингредиенты. Убери или замени их.`);
-    return;
+    return false;
    }
   }
   const priceResult=calculateOrderPrice({
    shawarmas:withShawarma?drafts.map(draft=>({title:panelTitle(describeDraft(draft,catalog).summary,ingredientNames),ingredientIds:draft.batches.map(batch=>batch.id),strictOrder:draft.strictOrder})):[],
    extras,
   },pricing,catalog);
-  if(!priceResult.ok){setNotice(priceResult.error);return}
-  const snapshot={id:++nextOrder.current,withShawarma,shawarmaQuantity:withShawarma?shawarmaQuantity:0,extras};
+  if(!priceResult.ok){setNotice(priceResult.error);return false}
   const usesScene=!skip3D&&activeScene.current.mode==='visual';
+  const fingerprint=JSON.stringify({
+   order:priceResult.order,grill,usesScene,kitchenEnabled,
+   recipes:withShawarma?drafts.map(recipeComposition):[],
+  });
+  if(!reviewed||reviewed.fingerprint!==fingerprint){
+   const review:OrderReview={
+    withShawarma,skip3D,usesScene,grill,paymentMethod,order:structuredClone(priceResult.order),fingerprint,
+    ...(reviewed?{notice:'Состав, стоимость или способ приготовления изменились. Проверь заказ ещё раз.'}:{}),
+   };
+   orderReviewRef.current=review;
+   setOrderReview(review);
+   setNotice('');
+   return false;
+  }
+  const snapshot={id:++nextOrder.current,withShawarma,shawarmaQuantity:withShawarma?shawarmaQuantity:0,extras,paymentMethod};
   const pending:DemoOrder={
    snapshot,priced:priceResult.order,
    repeatComposition:{version:1,shawarmas:withShawarma?drafts.map(recipeComposition):[],extras:Object.fromEntries(extras.map(item=>[item.id,item.quantity])),grill},
@@ -537,7 +586,7 @@ export default function App(){
    }:null,
    status:withShawarma?'cooking':'serving',
    usesScene,
-   kitchen:kitchenEnabled?{requestId:reserveKitchenRequest(priceResult.order,grill),state:'idle'}:undefined,
+   kitchen:kitchenEnabled?{requestId:reserveKitchenRequest(priceResult.order,grill,paymentMethod),state:'idle'}:undefined,
   };
   setNotice('');
   setInspect(false);
@@ -545,7 +594,7 @@ export default function App(){
    if(skip3D&&activeScene.current.mode==='visual')updateScene('quick');
    finishOrder(pending);
    void submitKitchenOrder();
-   return;
+   return true;
   }
   stageRef.current?.scrollIntoView({block:'start'});
   setSceneRequested(true);
@@ -557,6 +606,7 @@ export default function App(){
   }else{
    sound('click',!muted);
   }
+  return true;
  }
  function onCooked(id:number|undefined){
   const current=activeOrder.current;
@@ -814,6 +864,7 @@ export default function App(){
     {kitchenTicket}
     {order.priced.shawarmas.some(recipe=>recipe.strictOrder)&&<a className="order-jump" href="#kitchen-instructions">К шагам для кухни</a>}
     <OrderSummary order={order.priced} heading="Состав и стоимость заказа"/>
+    <p className="order-payment-method"><strong>{paymentMethodLabel(order.snapshot.paymentMethod)}</strong>{staticDemo&&<span> · Демо — деньги не списываются.</span>}</p>
     <details className="product-info-details"><summary>Аллергены и острота выбранного состава</summary>
      <p>Сведения об ингредиентах и дополнениях. Состав лаваша и особенности приготовления нужно уточнить у заведения.</p>
      <ProductInfoSummary catalog={catalog} settings={order.productInfo} selection={{ingredients:order.priced.shawarmas.flatMap(item=>item.ingredients.map(value=>value.id)),extras:order.priced.extras.map(item=>item.id)}}/>
@@ -833,7 +884,7 @@ export default function App(){
   <section id="fillings" className={'pantry '+(locked?'pantry-locked':'')} aria-label="Ингредиенты" tabIndex={-1}>
    <div className="pantry-heading"><div><h2>Начинки и соусы</h2><p>{locked?'Состав заказа зафиксирован':`Для шаурмы ${activeIndex+1}. Нажми на ингредиент, чтобы добавить или убрать его.${show3D&&batches.length?' Касание лаваша убирает последнюю начинку.':''}`}</p></div><label className="ingredient-search"><Search size={16} aria-hidden="true"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Ингредиент или соус" aria-label="Поиск ингредиентов"/></label></div>
    <div className="category-tabs" aria-label="Категории ингредиентов">{(Object.keys(categoryLabels) as (IngredientCategory|'all')[]).map(value=><button key={value} onClick={()=>setCategory(value)} aria-pressed={category===value} className={category===value?'active':''}>{categoryLabels[value]}<small>{ingredients.filter(item=>item.available&&(value==='all'||item.category===value)).length}</small></button>)}</div>
-   {visibleIngredients.length?<div className={'ingredient-carousel'+(category!=='all'||query.trim()?' filtered-ingredients':'')}>{visibleIngredients.map(item=>{const selected=batches.some(batch=>batch.id===item.id);return <button key={item.id} disabled={locked} onClick={()=>add(item.id)} className={'ingredient '+(selected?'selected':'')} aria-pressed={selected} aria-label={item.name} style={{'--food-color':item.color} as CSSProperties}><span className="ingredient-badge" aria-hidden="true">{selected?<Check size={13}/>:<Plus size={13}/>}</span><span className="ingredient-art" aria-hidden="true">{item.emoji}</span><b>{item.name}</b><small>{item.note}</small></button>})}</div>:<div className="no-ingredients"><p>Такого ингредиента пока нет. Попробуй другое название или категорию.</p><button onClick={()=>{setQuery('');setCategory('all')}}>Показать всё</button></div>}
+   {visibleIngredients.length?<div className={'ingredient-carousel'+(category!=='all'||query.trim()?' filtered-ingredients':'')}>{visibleIngredients.map(item=>{const selected=batches.some(batch=>batch.id===item.id),image=ingredientImageSource(item.image);return <button key={item.id} disabled={locked} onClick={()=>add(item.id)} className={'ingredient '+(selected?'selected':'')} aria-pressed={selected} aria-label={item.name} style={{'--food-color':item.color} as CSSProperties}><span className="ingredient-badge" aria-hidden="true">{selected?<Check size={13}/>:<Plus size={13}/>}</span><span className="ingredient-art" aria-hidden="true">{image?<img src={image} alt="" loading="lazy" decoding="async"/>:item.emoji}</span><b>{item.name}</b><small>{item.note}</small></button>})}</div>:<div className="no-ingredients"><p>Такого ингредиента пока нет. Попробуй другое название или категорию.</p><button onClick={()=>{setQuery('');setCategory('all')}}>Показать всё</button></div>}
    {!locked&&<div className="pantry-actions"><a className="order-jump" href="#order"><Flame size={16} aria-hidden="true"/> К приготовлению</a></div>}
   </section>
   <ExtrasMenu prices={pricing.extraPrices} items={extrasMenu} quantities={quantities} onChange={changeExtra} disabled={locked} quickOrder={!show3D} onServe={()=>startOrder(false)}/>
@@ -847,6 +898,9 @@ export default function App(){
   </details>}
   <details className="menu-sources"><summary><BookOpen size={15}/> О рецептах и составе</summary><p>Это творческая 3D-кухня, вдохновлённая московскими меню. Наши варианты можно менять; они не повторяют точные рецептуры заведений. Порции условные. Наличие продуктов и состав соусов в настоящем заказе нужно уточнять у заведения.</p><ul>{menuSources.map(source=><li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.name} ↗</a><span>{source.scope==='moscow'?'Москва':'Справочный рецепт'} · {source.note}</span></li>)}</ul><p>{kitchenEnabled?'Заказы передаются на экран кухни в локальной сети. Оплата не подключена.':'Демонстрационный конструктор. Заказы сохраняются в браузере.'}</p></details>
   <footer className="footer"><span>{catalog.settings.title}</span>{!staticDemo&&<a className="admin-link" href="#kitchen">Экран кухни</a>}<button type="button" className="admin-link" disabled={inPreparation||recovering} onClick={openAdmin}>Управление меню</button></footer>
+  {orderReview&&!locked&&<OrderConfirmation order={orderReview.order} grill={orderReview.grill}
+   withAnimation={orderReview.withShawarma&&orderReview.usesScene} notice={orderReview.notice} demo={staticDemo} initialPaymentMethod={orderReview.paymentMethod}
+   onCancel={cancelOrderReview} onConfirm={confirmOrderReview}/>}
   <MobileOrder total={displayedPrice?formatMoney(displayedPrice.totalKopecks):undefined} shawarmas={panelShawarmas} extras={panelExtras} activeIndex={activeIndex}
    status={recovering?'recovery':inPreparation?'preparing':orderStatus==='served'?'ready':'editing'}
    liveKitchen={kitchenEnabled}
